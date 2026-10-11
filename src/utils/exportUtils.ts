@@ -192,7 +192,7 @@ export function exportIndividualReportCardPDF(
   attendance: AttendanceRecord[],
   settings: SchoolSettings
 ) {
-  const doc = new jsPDF();
+  const doc = new jsPDF('portrait', 'mm', 'a4');
 
   // Header
   doc.setFillColor(30, 41, 59); // slate-800

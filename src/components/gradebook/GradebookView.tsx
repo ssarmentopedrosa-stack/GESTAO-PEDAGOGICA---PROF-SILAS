@@ -51,6 +51,7 @@ export const GradebookView: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{ studentId: string; assessmentId: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [editStatus, setEditStatus] = useState<GradeRecord['status']>('graded');
+  const [cellError, setCellError] = useState<string | null>(null);
 
   // Filter students by selected class
   const classStudents = useMemo(() => {
@@ -75,9 +76,10 @@ export const GradebookView: React.FC = () => {
     setEditingCell({ studentId, assessmentId });
     setEditValue(current?.value !== null && current?.value !== undefined ? String(current.value).replace('.', ',') : '');
     setEditStatus(current?.status || 'graded');
+    setCellError(null);
   };
 
-  // Commit grade save respecting assessment maxGrade and gradeScale
+  // Commit grade save respecting assessment maxGrade and gradeScale with strict validation (no silent truncation)
   const handleSaveGrade = async () => {
     if (!editingCell) return;
     const { studentId, assessmentId } = editingCell;
@@ -101,17 +103,20 @@ export const GradebookView: React.FC = () => {
         finalStatus = 'pending';
       } else {
         const num = parseFloat(editValue.replace(',', '.'));
-        if (!isNaN(num)) {
-          // Strictly respect bounds between 0 and assessment maxGrade
-          parsedVal = Math.max(0, Math.min(maxAllowed, Number(num.toFixed(2))));
-          finalStatus = 'graded';
-        } else {
-          parsedVal = null;
-          finalStatus = 'pending';
+        if (isNaN(num)) {
+          setCellError('Valor inválido.');
+          return;
         }
+        if (num < 0 || num > maxAllowed) {
+          setCellError(`Nota deve estar entre 0 e ${maxAllowed}.`);
+          return;
+        }
+        parsedVal = Number(num.toFixed(2));
+        finalStatus = 'graded';
       }
     }
 
+    setCellError(null);
     await setGrade(assessmentId, studentId, activeClassId, selectedPeriod, parsedVal, finalStatus);
     setEditingCell(null);
   };
@@ -199,7 +204,16 @@ export const GradebookView: React.FC = () => {
         </div>
       </div>
 
-      {/* Class Selector Bar if 'all' was active */}
+      {/* Class Selector Bar if 'all' was active or switching */}
+      {selectedClassId === 'all' && (
+        <div className="flex items-center space-x-2 text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>
+            <strong>Visão de Turma Ativa:</strong> O filtro geral está em &quot;Todas as Turmas&quot;. Para segurança pedagógica e integridade dos pesos avaliativos, o diário exibe <strong>{currentClass?.name}</strong>. Alterne a turma desejada no seletor abaixo:
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center space-x-3">
           <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -369,6 +383,9 @@ export const GradebookView: React.FC = () => {
                         } else if (gradeObj.status === 'excused') {
                           cellText = 'Dispensa';
                           statusBadge = 'text-sky-500';
+                        } else if (gradeObj.status === 'not_applicable') {
+                          cellText = 'N/A';
+                          statusBadge = 'text-slate-400 font-medium';
                         }
                       }
 
@@ -384,7 +401,7 @@ export const GradebookView: React.FC = () => {
                           }`}
                         >
                           {isEditing ? (
-                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-indigo-400 min-w-[100px]">
+                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-indigo-400 min-w-[110px]">
                               <div className="flex items-center justify-between text-[9px] text-slate-500 font-semibold px-0.5">
                                 <span>Máx: {maxAllowed}</span>
                                 <span>P: {ass.weight}</span>
@@ -394,13 +411,23 @@ export const GradebookView: React.FC = () => {
                                 autoFocus
                                 value={editValue}
                                 placeholder={`0 a ${maxAllowed}`}
-                                onChange={(e) => setEditValue(e.target.value)}
+                                onChange={(e) => {
+                                  setEditValue(e.target.value);
+                                  setCellError(null);
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handleSaveGrade();
                                   if (e.key === 'Escape') setEditingCell(null);
                                 }}
-                                className="w-full text-center text-xs font-bold py-1 border border-slate-300 dark:border-slate-600 rounded-sm bg-white dark:bg-slate-900 focus:outline-hidden"
+                                className={`w-full text-center text-xs font-bold py-1 border rounded-sm bg-white dark:bg-slate-900 focus:outline-hidden ${
+                                  cellError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 dark:border-slate-600'
+                                }`}
                               />
+                              {cellError && (
+                                <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold px-0.5 leading-tight text-center">
+                                  {cellError}
+                                </span>
+                              )}
                               <div className="flex items-center justify-between text-[10px] space-x-1">
                                 <select
                                   value={editStatus}
@@ -409,8 +436,9 @@ export const GradebookView: React.FC = () => {
                                 >
                                   <option value="graded">Nota</option>
                                   <option value="pending">Pendente</option>
-                                  <option value="absent">Falta</option>
-                                  <option value="excused">Dispensa</option>
+                                  <option value="absent">Falta (0,0)</option>
+                                  <option value="excused">Falta Justificada</option>
+                                  <option value="not_applicable">Dispensado (N/A)</option>
                                 </select>
                                 <button
                                   type="button"
