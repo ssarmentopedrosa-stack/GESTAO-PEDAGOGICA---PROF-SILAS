@@ -99,7 +99,7 @@ const AcademicContext = createContext<AcademicContextType | null>(null);
 const LOCAL_STORAGE_KEY_PREFIX = 'gestao_escolar_pro_';
 
 export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { effectiveUid } = useAuth();
+  const { effectiveUid, currentUser } = useAuth();
 
   const [classes, setClasses] = useState<ClassEntity[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -133,27 +133,41 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch Firestore remote data
-      const [remoteClasses, remoteStudents, remoteAssessments, remoteGrades, remoteQual, remoteAtt, remoteSettings] = await Promise.all([
-        fetchClasses(effectiveUid).catch(() => []),
-        fetchStudents(effectiveUid).catch(() => []),
-        fetchAssessments(effectiveUid).catch(() => []),
-        fetchGrades(effectiveUid).catch(() => []),
-        fetchQualitativeRecords(effectiveUid).catch(() => []),
-        fetchAttendance(effectiveUid).catch(() => []),
-        fetchSettings(effectiveUid).catch(() => ({ ...DEFAULT_SETTINGS, teacherUid: effectiveUid }))
-      ]);
+      if (currentUser) {
+        // Authenticated with Google: fetch from Cloud Firestore
+        const activeUid = currentUser.uid;
+        const [remoteClasses, remoteStudents, remoteAssessments, remoteGrades, remoteQual, remoteAtt, remoteSettings] = await Promise.all([
+          fetchClasses(activeUid).catch(() => []),
+          fetchStudents(activeUid).catch(() => []),
+          fetchAssessments(activeUid).catch(() => []),
+          fetchGrades(activeUid).catch(() => []),
+          fetchQualitativeRecords(activeUid).catch(() => []),
+          fetchAttendance(activeUid).catch(() => []),
+          fetchSettings(activeUid).catch(() => ({ ...DEFAULT_SETTINGS, teacherUid: activeUid }))
+        ]);
 
-      if (remoteStudents.length > 0) {
-        setClasses(remoteClasses);
-        setStudents(remoteStudents);
-        setAssessments(remoteAssessments);
-        setGrades(remoteGrades);
-        setQualitative(remoteQual);
-        setAttendance(remoteAtt);
-        setSettings(remoteSettings);
+        if (remoteStudents.length > 0) {
+          setClasses(remoteClasses);
+          setStudents(remoteStudents);
+          setAssessments(remoteAssessments);
+          setGrades(remoteGrades);
+          setQualitative(remoteQual);
+          setAttendance(remoteAtt);
+          setSettings(remoteSettings);
+        } else {
+          // First time sign-in with empty Firestore: initialize and persist 430 cohort
+          const generated = generate430StudentsDataset(activeUid);
+          setClasses(generated.classes);
+          setStudents(generated.students);
+          setAssessments(generated.assessments);
+          setGrades(generated.grades);
+          setQualitative(generated.qualitative);
+          setAttendance(generated.attendance);
+          setSettings({ ...DEFAULT_SETTINGS, teacherUid: activeUid });
+          seedCompleteDatasetToFirestore(activeUid).catch(console.warn);
+        }
       } else {
-        // If empty on first visit, generate initial full 430 cohort in memory/local
+        // Local Workspace / Demo Mode: Load from localStorage or initialize with in-memory cohort
         const localCached = localStorage.getItem(`${LOCAL_STORAGE_KEY_PREFIX}data_${effectiveUid}`);
         if (localCached) {
           const parsed = JSON.parse(localCached);
@@ -165,7 +179,6 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setAttendance(parsed.attendance || []);
           setSettings(parsed.settings || { ...DEFAULT_SETTINGS, teacherUid: effectiveUid });
         } else {
-          // Initialize with 430 students dataset by default for immediate complete functional experience!
           const generated = generate430StudentsDataset(effectiveUid);
           setClasses(generated.classes);
           setStudents(generated.students);
@@ -179,11 +192,10 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLastSyncTime(new Date());
     } catch (err) {
       console.error('Erro ao sincronizar dados:', err);
-      showToast('Aviso: Operando em modo de dados local de alta velocidade.', 'info');
     } finally {
       setIsLoading(false);
     }
-  }, [effectiveUid, showToast]);
+  }, [currentUser, effectiveUid]);
 
   useEffect(() => {
     loadData();
@@ -535,7 +547,8 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const loadSeed430Students = async () => {
     setIsSaving(true);
     try {
-      const dataset = generate430StudentsDataset(effectiveUid);
+      const activeUid = currentUser ? currentUser.uid : effectiveUid;
+      const dataset = generate430StudentsDataset(activeUid);
       setClasses(dataset.classes);
       setStudents(dataset.students);
       setAssessments(dataset.assessments);
@@ -543,10 +556,11 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setQualitative(dataset.qualitative);
       setAttendance(dataset.attendance);
 
-      // Async write to Firestore in background
-      seedCompleteDatasetToFirestore(effectiveUid).catch(err => {
-        console.warn('Persistência em background finalizada com fallback local:', err);
-      });
+      if (currentUser) {
+        seedCompleteDatasetToFirestore(currentUser.uid).catch(err => {
+          console.warn('Persistência em background finalizada com fallback local:', err);
+        });
+      }
 
       showToast(`Base completa carregada com 430 estudantes em 12 turmas de Física!`, 'success');
     } catch (err) {

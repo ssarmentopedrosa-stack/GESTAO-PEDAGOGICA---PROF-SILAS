@@ -8,10 +8,9 @@ import {
   deleteDoc,
   query,
   where,
-  writeBatch,
-  serverTimestamp
+  writeBatch
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from './firebase';
+import { db, auth, handleFirestoreError, OperationType } from './firebase';
 import {
   Student,
   ClassEntity,
@@ -40,9 +39,11 @@ export const DEFAULT_SETTINGS: SchoolSettings = {
 // ==========================================
 
 export async function fetchClasses(teacherUid: string): Promise<ClassEntity[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'classes';
   try {
-    const q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    const q = query(collection(db, path), where('teacherUid', '==', activeUid));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as ClassEntity);
   } catch (error) {
@@ -51,10 +52,13 @@ export async function fetchClasses(teacherUid: string): Promise<ClassEntity[]> {
 }
 
 export async function saveClass(cls: ClassEntity): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `classes/${cls.id}`;
   try {
     await setDoc(doc(db, 'classes', cls.id), {
       ...cls,
+      teacherUid: activeUid,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -63,6 +67,7 @@ export async function saveClass(cls: ClassEntity): Promise<void> {
 }
 
 export async function deleteClass(classId: string, teacherUid: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `classes/${classId}`;
   try {
     await deleteDoc(doc(db, 'classes', classId));
@@ -76,11 +81,13 @@ export async function deleteClass(classId: string, teacherUid: string): Promise<
 // ==========================================
 
 export async function fetchStudents(teacherUid: string, classId?: string): Promise<Student[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'students';
   try {
-    let q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    let q = query(collection(db, path), where('teacherUid', '==', activeUid));
     if (classId) {
-      q = query(collection(db, path), where('teacherUid', '==', teacherUid), where('classId', '==', classId));
+      q = query(collection(db, path), where('teacherUid', '==', activeUid), where('classId', '==', classId));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as Student);
@@ -90,10 +97,13 @@ export async function fetchStudents(teacherUid: string, classId?: string): Promi
 }
 
 export async function saveStudent(student: Student): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `students/${student.id}`;
   try {
     await setDoc(doc(db, 'students', student.id), {
       ...student,
+      teacherUid: activeUid,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -102,6 +112,8 @@ export async function saveStudent(student: Student): Promise<void> {
 }
 
 export async function saveStudentsBatch(students: Student[]): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = 'students';
   try {
     // Firestore batches allow max 500 operations per batch
@@ -113,6 +125,7 @@ export async function saveStudentsBatch(students: Student[]): Promise<void> {
         const ref = doc(db, 'students', st.id);
         batch.set(ref, {
           ...st,
+          teacherUid: activeUid,
           updatedAt: new Date().toISOString()
         });
       }
@@ -124,6 +137,7 @@ export async function saveStudentsBatch(students: Student[]): Promise<void> {
 }
 
 export async function deleteStudent(studentId: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `students/${studentId}`;
   try {
     await deleteDoc(doc(db, 'students', studentId));
@@ -137,11 +151,13 @@ export async function deleteStudent(studentId: string): Promise<void> {
 // ==========================================
 
 export async function fetchAssessments(teacherUid: string, classId?: string): Promise<Assessment[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'assessments';
   try {
-    let q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    let q = query(collection(db, path), where('teacherUid', '==', activeUid));
     if (classId) {
-      q = query(collection(db, path), where('teacherUid', '==', teacherUid), where('classId', '==', classId));
+      q = query(collection(db, path), where('teacherUid', '==', activeUid), where('classId', '==', classId));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as Assessment);
@@ -151,10 +167,13 @@ export async function fetchAssessments(teacherUid: string, classId?: string): Pr
 }
 
 export async function saveAssessment(assessment: Assessment): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `assessments/${assessment.id}`;
   try {
     await setDoc(doc(db, 'assessments', assessment.id), {
       ...assessment,
+      teacherUid: activeUid,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -163,6 +182,7 @@ export async function saveAssessment(assessment: Assessment): Promise<void> {
 }
 
 export async function deleteAssessment(assessmentId: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `assessments/${assessmentId}`;
   try {
     await deleteDoc(doc(db, 'assessments', assessmentId));
@@ -176,11 +196,13 @@ export async function deleteAssessment(assessmentId: string): Promise<void> {
 // ==========================================
 
 export async function fetchGrades(teacherUid: string, classId?: string): Promise<GradeRecord[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'grades';
   try {
-    let q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    let q = query(collection(db, path), where('teacherUid', '==', activeUid));
     if (classId) {
-      q = query(collection(db, path), where('teacherUid', '==', teacherUid), where('classId', '==', classId));
+      q = query(collection(db, path), where('teacherUid', '==', activeUid), where('classId', '==', classId));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as GradeRecord);
@@ -190,10 +212,13 @@ export async function fetchGrades(teacherUid: string, classId?: string): Promise
 }
 
 export async function saveGrade(grade: GradeRecord): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `grades/${grade.id}`;
   try {
     await setDoc(doc(db, 'grades', grade.id), {
       ...grade,
+      teacherUid: activeUid,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -202,6 +227,8 @@ export async function saveGrade(grade: GradeRecord): Promise<void> {
 }
 
 export async function saveGradesBatch(gradesList: GradeRecord[]): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = 'grades';
   try {
     const batchSize = 400;
@@ -212,6 +239,7 @@ export async function saveGradesBatch(gradesList: GradeRecord[]): Promise<void> 
         const ref = doc(db, 'grades', gr.id);
         batch.set(ref, {
           ...gr,
+          teacherUid: activeUid,
           updatedAt: new Date().toISOString()
         });
       }
@@ -227,11 +255,13 @@ export async function saveGradesBatch(gradesList: GradeRecord[]): Promise<void> 
 // ==========================================
 
 export async function fetchQualitativeRecords(teacherUid: string, classId?: string): Promise<QualitativeRecord[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'qualitative';
   try {
-    let q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    let q = query(collection(db, path), where('teacherUid', '==', activeUid));
     if (classId) {
-      q = query(collection(db, path), where('teacherUid', '==', teacherUid), where('classId', '==', classId));
+      q = query(collection(db, path), where('teacherUid', '==', activeUid), where('classId', '==', classId));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as QualitativeRecord);
@@ -241,15 +271,21 @@ export async function fetchQualitativeRecords(teacherUid: string, classId?: stri
 }
 
 export async function saveQualitativeRecord(rec: QualitativeRecord): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `qualitative/${rec.id}`;
   try {
-    await setDoc(doc(db, 'qualitative', rec.id), rec);
+    await setDoc(doc(db, 'qualitative', rec.id), {
+      ...rec,
+      teacherUid: activeUid
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
 export async function deleteQualitativeRecord(id: string): Promise<void> {
+  if (!auth.currentUser) return;
   const path = `qualitative/${id}`;
   try {
     await deleteDoc(doc(db, 'qualitative', id));
@@ -263,11 +299,13 @@ export async function deleteQualitativeRecord(id: string): Promise<void> {
 // ==========================================
 
 export async function fetchAttendance(teacherUid: string, classId?: string): Promise<AttendanceRecord[]> {
+  if (!auth.currentUser) return [];
+  const activeUid = auth.currentUser.uid;
   const path = 'attendance';
   try {
-    let q = query(collection(db, path), where('teacherUid', '==', teacherUid));
+    let q = query(collection(db, path), where('teacherUid', '==', activeUid));
     if (classId) {
-      q = query(collection(db, path), where('teacherUid', '==', teacherUid), where('classId', '==', classId));
+      q = query(collection(db, path), where('teacherUid', '==', activeUid), where('classId', '==', classId));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as AttendanceRecord);
@@ -277,9 +315,14 @@ export async function fetchAttendance(teacherUid: string, classId?: string): Pro
 }
 
 export async function saveAttendance(att: AttendanceRecord): Promise<void> {
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
   const path = `attendance/${att.id}`;
   try {
-    await setDoc(doc(db, 'attendance', att.id), att);
+    await setDoc(doc(db, 'attendance', att.id), {
+      ...att,
+      teacherUid: activeUid
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -290,25 +333,29 @@ export async function saveAttendance(att: AttendanceRecord): Promise<void> {
 // ==========================================
 
 export async function fetchSettings(teacherUid: string): Promise<SchoolSettings> {
-  const path = `settings/${teacherUid}`;
+  if (!auth.currentUser) return { ...DEFAULT_SETTINGS, teacherUid };
+  const activeUid = auth.currentUser.uid;
+  const path = `settings/${activeUid}`;
   try {
-    const docRef = doc(db, 'settings', teacherUid);
+    const docRef = doc(db, 'settings', activeUid);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       return snap.data() as SchoolSettings;
     }
-    // Return default settings
-    return { ...DEFAULT_SETTINGS, teacherUid };
+    return { ...DEFAULT_SETTINGS, teacherUid: activeUid };
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
   }
 }
 
 export async function saveSettings(settings: SchoolSettings): Promise<void> {
-  const path = `settings/${settings.teacherUid}`;
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
+  const path = `settings/${activeUid}`;
   try {
-    await setDoc(doc(db, 'settings', settings.teacherUid), {
+    await setDoc(doc(db, 'settings', activeUid), {
       ...settings,
+      teacherUid: activeUid,
       updatedAt: new Date().toISOString()
     });
   } catch (error) {
@@ -391,10 +438,6 @@ export function generate430StudentsDataset(teacherUid: string): {
   let regCounter = 20261001;
 
   for (const c of classConfigs) {
-    // Generate assessments for this class
-    // 1º Bimestre: P1 (Prova Cinemática/Mecânica), T1 (Laboratório/Relatório), REC1 (Recuperação)
-    // 2º Bimestre: P2 (Prova Dinâmica/Termodinâmica), T2 (Projeto Integrador), REC2
-    // 3º Bimestre: P3 (Óptica/Eletromagnetismo), T3 (Atividade Prática)
     const assP1: Assessment = {
       id: `ass-${c.id}-b1-p1`,
       title: 'P1: Prova Bimestral Teórica',
@@ -462,7 +505,6 @@ export function generate430StudentsDataset(teacherUid: string): {
 
     assessments.push(assP1, assT1, assRec1, assP2, assT2);
 
-    // Create 3 attendance sessions for this class
     const att1: AttendanceRecord = {
       id: `att-${c.id}-1`,
       classId: c.id,
@@ -518,16 +560,14 @@ export function generate430StudentsDataset(teacherUid: string): {
       };
       students.push(student);
 
-      // Generate grades with realistic Gaussian distribution around 6.8
-      // Seed deterministic pseudorandom
       const seedVal = (i * 17 + c.id.charCodeAt(5)) % 100;
       let p1Score: number;
       if (seedVal < 15) {
-        p1Score = Number((3.5 + (seedVal / 15) * 2.0).toFixed(1)); // 3.5 - 5.5 (needs recovery)
+        p1Score = Number((3.5 + (seedVal / 15) * 2.0).toFixed(1));
       } else if (seedVal < 60) {
-        p1Score = Number((6.0 + ((seedVal - 15) / 45) * 2.2).toFixed(1)); // 6.0 - 8.2 (solid)
+        p1Score = Number((6.0 + ((seedVal - 15) / 45) * 2.2).toFixed(1));
       } else {
-        p1Score = Number((8.3 + ((seedVal - 60) / 40) * 1.7).toFixed(1)); // 8.3 - 10.0 (high performance)
+        p1Score = Number((8.3 + ((seedVal - 60) / 40) * 1.7).toFixed(1));
       }
 
       let t1Score = Number(Math.min(10, Math.max(0, p1Score + (seedVal % 2 === 0 ? 0.8 : -0.4))).toFixed(1));
@@ -554,10 +594,8 @@ export function generate430StudentsDataset(teacherUid: string): {
         teacherUid
       });
 
-      // Calculate B1 weighted average: (p1 * 6 + t1 * 4) / 10
       const b1Avg = (p1Score * 6 + t1Score * 4) / 10;
       if (b1Avg < 6.0) {
-        // Did recovery
         const recScore = Number(Math.min(10, b1Avg + 2.0 + (seedVal % 1.5)).toFixed(1));
         grades.push({
           id: `${assRec1.id}_${studentId}`,
@@ -573,7 +611,6 @@ export function generate430StudentsDataset(teacherUid: string): {
         });
       }
 
-      // Period 2 grades (some graded, few pending)
       if (i % 8 !== 0) {
         const p2Score = Number(Math.min(10, Math.max(2, p1Score + (i % 3 === 0 ? -0.7 : 0.6))).toFixed(1));
         grades.push({
@@ -599,7 +636,6 @@ export function generate430StudentsDataset(teacherUid: string): {
         });
       }
 
-      // Qualitative records for students with notable behavior
       if (b1Avg < 5.5) {
         qualitative.push({
           id: `qual-${studentId}-1`,
@@ -632,7 +668,6 @@ export function generate430StudentsDataset(teacherUid: string): {
         });
       }
 
-      // Attendance records
       att1.records[studentId] = {
         status: i % 18 === 0 ? 'absent' : 'present'
       };
@@ -652,7 +687,9 @@ export function generate430StudentsDataset(teacherUid: string): {
 }
 
 export async function seedCompleteDatasetToFirestore(teacherUid: string): Promise<number> {
-  const dataset = generate430StudentsDataset(teacherUid);
+  if (!auth.currentUser) return 0;
+  const activeUid = auth.currentUser.uid;
+  const dataset = generate430StudentsDataset(activeUid);
 
   // 1. Save classes
   for (const cls of dataset.classes) {
@@ -684,23 +721,25 @@ export async function seedCompleteDatasetToFirestore(teacherUid: string): Promis
 }
 
 export async function clearAllTeacherData(teacherUid: string): Promise<void> {
-  // Cleans all collections for this teacherUid
-  const classesList = await fetchClasses(teacherUid);
+  if (!auth.currentUser) return;
+  const activeUid = auth.currentUser.uid;
+
+  const classesList = await fetchClasses(activeUid);
   for (const c of classesList) {
-    await deleteClass(c.id, teacherUid);
+    await deleteClass(c.id, activeUid);
   }
 
-  const studentsList = await fetchStudents(teacherUid);
+  const studentsList = await fetchStudents(activeUid);
   for (const st of studentsList) {
     await deleteStudent(st.id);
   }
 
-  const assessmentsList = await fetchAssessments(teacherUid);
+  const assessmentsList = await fetchAssessments(activeUid);
   for (const a of assessmentsList) {
     await deleteAssessment(a.id);
   }
 
-  const gradesList = await fetchGrades(teacherUid);
+  const gradesList = await fetchGrades(activeUid);
   const batch = writeBatch(db);
   for (let i = 0; i < Math.min(gradesList.length, 450); i++) {
     batch.delete(doc(db, 'grades', gradesList[i].id));

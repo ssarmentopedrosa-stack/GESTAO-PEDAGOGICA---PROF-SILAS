@@ -61,6 +61,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export async function testConnection(): Promise<boolean> {
+  if (!auth.currentUser) {
+    return true;
+  }
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
