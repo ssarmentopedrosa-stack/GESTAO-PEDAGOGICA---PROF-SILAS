@@ -8,13 +8,13 @@ import {
   LogOut, 
   Sun, 
   Moon, 
-  ShieldCheck, 
-  Users,
-  Search,
-  BookOpen
+  CheckCircle2, 
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAcademic } from '../../context/AcademicContext';
+import { Button } from '../common/Button';
 
 interface NavbarProps {
   darkMode: boolean;
@@ -35,73 +35,97 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-        {/* Brand & Context */}
+        {/* Brand & Academic Context */}
         <div className="flex items-center space-x-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-tr from-indigo-600 to-blue-500 text-white shadow-md shadow-indigo-500/20">
-            <GraduationCap className="h-6 w-6" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+            <GraduationCap className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white sm:text-lg">
-                Gestão Escolar <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">PRO</span>
+                Gestão Pedagógica <span className="text-blue-600 dark:text-blue-400 font-semibold text-xs sm:text-sm">— Prof. Silas</span>
               </h1>
-              <span className="hidden sm:inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                Física & Ensino Médio
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Física • Ensino Médio
               </span>
-              {currentUser ? (
-                <span className="hidden lg:inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Cloud Firestore Ativo
-                </span>
-              ) : (
-                <span className="hidden lg:inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                  Modo Local
-                </span>
-              )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 hidden md:block">
-              {students.length} estudantes matriculados • {classes.length} turmas ativas • Ano Letivo 2026
-            </p>
+            <div className="flex items-center space-x-2 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <span className="hidden md:inline">
+                {students.length} estudantes · {classes.length} turmas ativas · 2026
+              </span>
+              <span className="hidden md:inline text-slate-300 dark:text-slate-700">·</span>
+              {/* Honest Connection Status */}
+              <div className="flex items-center space-x-1">
+                {currentUser && firestoreConnected ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Firestore Sincronizado
+                  </span>
+                ) : currentUser && !firestoreConnected ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    Reconectando...
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                    Modo Local
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Center / Right actions */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Quick dataset seed button if empty or test requested */}
-          <button
+        <div className="flex items-center space-x-2 sm:space-x-2.5">
+          {/* Quick dataset seed button */}
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => loadSeed430Students()}
             disabled={isSaving}
-            className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-2xs"
-            title="Carregar ou restaurar base completa com 430 estudantes em 12 turmas de Física"
+            leftIcon={<Database className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
+            title="Carregar ou restaurar base completa com 430 estudantes em 12 turmas"
+            className="hidden sm:inline-flex"
           >
-            <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span className="hidden sm:inline">Base 430 Alunos</span>
-          </button>
+            <span>Base 430 Alunos</span>
+          </Button>
 
           {/* Import Excel */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onOpenImport}
-            className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition shadow-2xs"
+            leftIcon={<Upload className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
           >
-            <Upload className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="hidden md:inline">Importar Planilha</span>
-          </button>
+            <span className="hidden md:inline">Importar</span>
+            <span className="md:hidden">Importar</span>
+          </Button>
 
           {/* Export Center */}
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={onOpenExport}
-            className="inline-flex items-center space-x-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-500/25"
+            leftIcon={<Download className="h-3.5 w-3.5" />}
           >
-            <Download className="h-3.5 w-3.5" />
             <span className="hidden md:inline">Exportar / PDF</span>
-          </button>
+            <span className="md:hidden">PDF</span>
+          </Button>
 
           {/* Dark / Light toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition"
-            aria-label="Alternar modo visual"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label={darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            title={darkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
           >
-            {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+            {darkMode ? (
+              <Sun className="h-4 w-4 text-amber-400" />
+            ) : (
+              <Moon className="h-4 w-4 text-slate-600" />
+            )}
           </button>
 
           {/* Auth indicator */}
@@ -110,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center space-x-2">
                 <div className="hidden lg:block text-right">
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-tight">
-                    {currentUser.displayName || 'Professor(a)'}
+                    {currentUser.displayName || userProfile?.displayName || 'Prof. Silas'}
                   </p>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                     {currentUser.email}
@@ -123,26 +147,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-700"
                   />
                 ) : (
-                  <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs">
-                    {currentUser.displayName?.[0] || 'P'}
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center font-bold text-xs">
+                    {(currentUser.displayName || 'S')[0]}
                   </div>
                 )}
                 <button
                   onClick={logout}
-                  className="rounded-lg p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition"
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                   title="Sair da conta"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
               </div>
             ) : (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={login}
-                className="inline-flex items-center space-x-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition"
+                leftIcon={<LogIn className="h-3.5 w-3.5 text-blue-600" />}
               >
-                <LogIn className="h-3.5 w-3.5" />
-                <span>Entrar com Google</span>
-              </button>
+                <span>Entrar</span>
+              </Button>
             )}
           </div>
         </div>

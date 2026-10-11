@@ -15,6 +15,10 @@ import { useAcademic } from '../../context/AcademicContext';
 import { QualitativeRecord, QualitativeLevel } from '../../types';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
+import { PageHeader } from '../common/PageHeader';
+import { Button } from '../common/Button';
+import { Card } from '../common/Card';
+import { EmptyState } from '../common/EmptyState';
 
 export const QUALITATIVE_CRITERIA = [
   { id: 'participacao', label: 'Participação e Engajamento nas Aulas' },
@@ -37,6 +41,7 @@ export const QualitativeView: React.FC = () => {
     selectedPeriod,
     createQualitative,
     removeQualitative,
+    showToast
   } = useAcademic();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -100,38 +105,35 @@ export const QualitativeView: React.FC = () => {
       criterion: formCriterion,
       criterionLabel: critObj?.label || formCriterion,
       level: formLevel,
-      comment: formComment.trim()
+      comment: formComment.trim() || undefined
     });
 
     setIsModalOpen(false);
+    showToast('Anotação formativa registrada com sucesso!');
   };
 
   return (
     <div className="space-y-5">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Avaliação Qualitativa & Formativa
-            </h2>
-            <Badge variant="purple">
-              {selectedPeriod}º Bimestre
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Registro autônomo de observações comportamentais, atitudinais e de desenvolvimento, independente de notas numéricas.
-          </p>
-        </div>
-
-        <button
-          onClick={handleOpenModal}
-          className="inline-flex items-center space-x-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Registro Formativo</span>
-        </button>
-      </div>
+      <PageHeader
+        title="Acompanhamento Formativo & Qualitativo"
+        subtitle="Registro de observações atitudinais, socioemocionais e de evolução na aprendizagem de Física."
+        badge={
+          <Badge variant="info">
+            {filteredRecords.length} Registros ({selectedPeriod}º Bimestre)
+          </Badge>
+        }
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleOpenModal}
+            leftIcon={<Plus className="h-4 w-4" />}
+          >
+            Novo Registro Formativo
+          </Button>
+        }
+      />
 
       {/* Filter Bar */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -143,7 +145,7 @@ export const QualitativeView: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por estudante..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -152,7 +154,7 @@ export const QualitativeView: React.FC = () => {
           <select
             value={filterCriterion}
             onChange={(e) => setFilterCriterion(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas as Dimensões / Critérios</option>
             {QUALITATIVE_CRITERIA.map(c => (
@@ -166,7 +168,7 @@ export const QualitativeView: React.FC = () => {
           <select
             value={filterLevel}
             onChange={(e) => setFilterLevel(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas as Escalas Conceituais</option>
             <option value="excelente">Excelente</option>
@@ -180,20 +182,32 @@ export const QualitativeView: React.FC = () => {
       {/* Chronological List of Records */}
       <div className="space-y-3">
         {filteredRecords.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-12 text-center text-slate-500 text-xs">
-            Nenhum registro qualitativo cadastrado para o {selectedPeriod}º Bimestre com os filtros selecionados.
-          </div>
+          <EmptyState
+            icon={<HeartHandshake className="h-6 w-6" />}
+            title="Nenhum registro qualitativo"
+            description={`Não há anotações cadastradas para o ${selectedPeriod}º Bimestre com os filtros selecionados.`}
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenModal}
+                leftIcon={<Plus className="h-4 w-4" />}
+              >
+                Registrar Primeiro Parecer
+              </Button>
+            }
+          />
         ) : (
           filteredRecords.map(rec => {
             const student = students.find(s => s.id === rec.studentId);
             return (
-              <div
+              <Card
                 key={rec.id}
-                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition"
+                className="hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-indigo-600" />
+                    <User className="h-4 w-4 text-blue-600" />
                     <span className="font-bold text-sm text-slate-900 dark:text-white">
                       {student?.name || rec.studentName}
                     </span>
@@ -219,7 +233,7 @@ export const QualitativeView: React.FC = () => {
                           removeQualitative(rec.id);
                         }
                       }}
-                      className="p-1 rounded-md text-slate-400 hover:text-rose-600 transition"
+                      className="p-1 rounded-md text-slate-400 hover:text-red-600 transition-colors"
                       title="Excluir parecer"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -228,7 +242,7 @@ export const QualitativeView: React.FC = () => {
                 </div>
 
                 <div className="mt-3">
-                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 block mb-1">
+                  <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 block mb-1">
                     Dimensão: {rec.criterionLabel || rec.criterion}
                   </span>
                   {rec.comment && (
@@ -237,33 +251,33 @@ export const QualitativeView: React.FC = () => {
                     </p>
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })
         )}
       </div>
 
-      {/* Qualitative Record Modal */}
+      {/* Qualitative Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Novo Parecer Formativo e Qualitativo"
+        title="Registrar Acompanhamento Qualitativo"
         maxWidth="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Estudante *
+              Estudante Avaliado *
             </label>
             <select
               required
               value={formStudentId}
               onChange={(e) => setFormStudentId(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
-              {currentClassStudents.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.registration} • {s.className})
+              {currentClassStudents.map(st => (
+                <option key={st.id} value={st.id}>
+                  {st.name} ({st.registration} • {st.className})
                 </option>
               ))}
             </select>
@@ -272,12 +286,12 @@ export const QualitativeView: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Critério / Dimensão Avaliativa *
+                Dimensão / Critério de Acompanhamento *
               </label>
               <select
                 value={formCriterion}
                 onChange={(e) => setFormCriterion(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 {QUALITATIVE_CRITERIA.map(c => (
                   <option key={c.id} value={c.id}>{c.label}</option>
@@ -287,17 +301,17 @@ export const QualitativeView: React.FC = () => {
 
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Conceito / Nível Observado *
+                Conceito / Nível Atribuído *
               </label>
               <select
                 value={formLevel}
                 onChange={(e) => setFormLevel(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                <option value="excelente">Excelente (Autonomia e Proatividade)</option>
-                <option value="bom">Bom (Atende com consistência)</option>
-                <option value="em_desenvolvimento">Em Desenvolvimento (Progredindo)</option>
-                <option value="necessita_acompanhamento">Necessita de Acompanhamento (Ponto de Atenção)</option>
+                <option value="excelente">Excelente (Supera expectativas)</option>
+                <option value="bom">Bom (Plenamente satisfatório)</option>
+                <option value="em_desenvolvimento">Em Desenvolvimento (Requer estímulo)</option>
+                <option value="necessita_acompanhamento">Necessita de Acompanhamento (Alerta)</option>
               </select>
             </div>
           </div>
@@ -305,17 +319,16 @@ export const QualitativeView: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Bimestre
+                Bimestre de Referência
               </label>
               <select
                 value={formPeriod}
                 onChange={(e) => setFormPeriod(Number(e.target.value))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                <option value={1}>1º Bimestre</option>
-                <option value={2}>2º Bimestre</option>
-                <option value={3}>3º Bimestre</option>
-                <option value={4}>4º Bimestre</option>
+                {[1, 2, 3, 4].map(p => (
+                  <option key={p} value={p}>{p}º Bimestre</option>
+                ))}
               </select>
             </div>
 
@@ -327,38 +340,40 @@ export const QualitativeView: React.FC = () => {
                 type="date"
                 value={formDate}
                 onChange={(e) => setFormDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Parecer Pedagógico Contextualizado (Respeitoso e Objetivo)
+              Parecer Pedagógico Descritivo (Evidências e Orientações)
             </label>
             <textarea
               rows={3}
               value={formComment}
               onChange={(e) => setFormComment(e.target.value)}
-              placeholder="Descreva comportamentos observáveis, evolução individual e recomendações pedagógicas. Evite rótulos pessoais."
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+              placeholder="Descreva fatos observados, evolução de postura, colaboração ou necessidade de reforço em conceitos..."
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
+            <Button
               type="button"
+              variant="subtle"
+              size="sm"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+              variant="primary"
+              size="sm"
             >
-              Registrar Parecer
-            </button>
+              Salvar Registro
+            </Button>
           </div>
         </form>
       </Modal>

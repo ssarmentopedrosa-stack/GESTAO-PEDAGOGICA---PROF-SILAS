@@ -19,6 +19,8 @@ import { calculatePeriodGrade, calculateNeededGrade, formatGrade } from '../../u
 import { exportGradebookToExcel, exportClassPerformancePDF } from '../../utils/exportUtils';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
+import { PageHeader } from '../common/PageHeader';
+import { Button } from '../common/Button';
 
 export const GradebookView: React.FC = () => {
   const {
@@ -146,63 +148,58 @@ export const GradebookView: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Top Header & Actions */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Diário de Notas Quantitativas
-            </h2>
-            <Badge variant="info">
-              {currentClass?.name || 'Selecione uma turma'}
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Planilha dinâmica de notas com edição ágil de células, cálculo transparente de médias e recuperação paralela.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Formula Info Toggle */}
-          <button
-            onClick={() => setShowFormulaInfo(!showFormulaInfo)}
-            className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-          >
-            <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-            <span>Critérios de Cálculo</span>
-          </button>
-
-          {/* Export Class Gradebook to Excel */}
-          {currentClass && (
-            <button
-              onClick={() => exportGradebookToExcel(currentClass, classStudents, assessments, grades, selectedPeriod, settings)}
-              className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+      <PageHeader
+        title="Diário de Notas Quantitativas"
+        subtitle="Planilha dinâmica de notas com edição ágil de células, cálculo transparente de médias e recuperação paralela."
+        badge={
+          <Badge variant="info">
+            {currentClass?.name || 'Selecione uma turma'}
+          </Badge>
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFormulaInfo(!showFormulaInfo)}
+              leftIcon={<HelpCircle className="h-3.5 w-3.5 text-blue-600" />}
             >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Exportar Excel</span>
-            </button>
-          )}
+              Critérios de Cálculo
+            </Button>
 
-          {/* Export ATA PDF */}
-          {currentClass && (
-            <button
-              onClick={() => exportClassPerformancePDF(currentClass, classStudents, assessments, grades, selectedPeriod, settings)}
-              className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            {currentClass && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportGradebookToExcel(currentClass, classStudents, assessments, grades, selectedPeriod, settings)}
+                leftIcon={<FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />}
+              >
+                Exportar Excel
+              </Button>
+            )}
+
+            {currentClass && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportClassPerformancePDF(currentClass, classStudents, assessments, grades, selectedPeriod, settings)}
+                leftIcon={<Download className="h-3.5 w-3.5 text-blue-600" />}
+              >
+                Ata PDF
+              </Button>
+            )}
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsAssessmentModalOpen(true)}
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-              <Download className="h-3.5 w-3.5 text-indigo-600" />
-              <span>Ata PDF</span>
-            </button>
-          )}
-
-          {/* New Assessment */}
-          <button
-            onClick={() => setIsAssessmentModalOpen(true)}
-            className="inline-flex items-center space-x-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nova Avaliação</span>
-          </button>
-        </div>
-      </div>
+              Nova Avaliação
+            </Button>
+          </>
+        }
+      />
 
       {/* Class Selector Bar if 'all' was active or switching */}
       {selectedClassId === 'all' && (
@@ -222,7 +219,7 @@ export const GradebookView: React.FC = () => {
           <select
             value={activeClassId}
             onChange={(e) => setSelectedClassId(e.target.value)}
-            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200"
+            className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             {classes.map(c => (
               <option key={c.id} value={c.id}>{c.name} ({c.technicalCourse})</option>
@@ -236,10 +233,10 @@ export const GradebookView: React.FC = () => {
             <button
               key={p}
               onClick={() => setSelectedPeriod(p)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                 selectedPeriod === p
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               {p}º Bimestre
@@ -250,13 +247,13 @@ export const GradebookView: React.FC = () => {
 
       {/* Formula Transparency Callout */}
       {showFormulaInfo && (
-        <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 p-4 text-xs text-indigo-950 dark:text-indigo-200 space-y-2">
+        <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 p-4 text-xs text-blue-950 dark:text-blue-200 space-y-2">
           <div className="flex items-center justify-between font-bold">
-            <span className="flex items-center space-x-1.5 text-indigo-900 dark:text-indigo-300">
+            <span className="flex items-center space-x-1.5 text-blue-900 dark:text-blue-300">
               <Calculator className="h-4 w-4" />
               <span>Transparência Pedagógica: Regras de Cálculo do Diário</span>
             </span>
-            <button onClick={() => setShowFormulaInfo(false)} className="text-indigo-600 dark:text-indigo-400 font-normal hover:underline">
+            <button onClick={() => setShowFormulaInfo(false)} className="text-blue-600 dark:text-blue-400 font-normal hover:underline">
               Fechar
             </button>
           </div>
@@ -303,7 +300,7 @@ export const GradebookView: React.FC = () => {
                     <div className="flex items-center justify-center space-x-1.5 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
                       <span className="uppercase font-semibold">{ass.type}</span>
                       <span>•</span>
-                      <span className="font-bold text-indigo-600 dark:text-indigo-400">Peso {ass.weight}</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">Peso {ass.weight}</span>
                     </div>
 
                     {/* Quick remove assessment trigger */}
@@ -313,7 +310,7 @@ export const GradebookView: React.FC = () => {
                           removeAssessment(ass.id);
                         }
                       }}
-                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-700 p-0.5 transition"
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-700 p-0.5 transition-opacity"
                       title="Excluir instrumento avaliativo"
                     >
                       <Trash2 className="h-3 w-3" />
@@ -328,7 +325,7 @@ export const GradebookView: React.FC = () => {
                 <th className="px-3 py-3 border-b border-r border-slate-200 dark:border-slate-700 w-24 text-center font-bold bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-300">
                   Recup.
                 </th>
-                <th className="px-3 py-3 border-b border-r border-slate-200 dark:border-slate-700 w-28 text-center font-bold bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200">
+                <th className="px-3 py-3 border-b border-r border-slate-200 dark:border-slate-700 w-28 text-center font-bold bg-blue-50/50 dark:bg-blue-950/30 text-blue-950 dark:text-blue-200">
                   Média Final
                 </th>
                 <th className="px-3 py-3 border-b border-slate-200 dark:border-slate-700 w-28 text-center font-bold">
@@ -349,7 +346,7 @@ export const GradebookView: React.FC = () => {
                 );
 
                 return (
-                  <tr key={student.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-950/15 transition-colors">
+                  <tr key={student.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-950/15 transition-colors">
                     <td className="px-2 py-2 text-center text-slate-400 font-mono text-[11px] border-r border-slate-100 dark:border-slate-800">
                       {index + 1}
                     </td>
@@ -396,12 +393,12 @@ export const GradebookView: React.FC = () => {
                           onClick={() => handleStartEdit(student.id, ass.id)}
                           className={`px-2 py-1.5 text-center border-r border-slate-100 dark:border-slate-800 cursor-pointer transition select-none ${
                             isEditing
-                              ? 'bg-indigo-100/70 dark:bg-indigo-900/50 ring-2 ring-indigo-500 ring-inset'
+                              ? 'bg-blue-100/70 dark:bg-blue-900/50 ring-2 ring-blue-500 ring-inset'
                               : 'hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
                           {isEditing ? (
-                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-indigo-400 min-w-[110px]">
+                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-blue-400 min-w-[110px]">
                               <div className="flex items-center justify-between text-[9px] text-slate-500 font-semibold px-0.5">
                                 <span>Máx: {maxAllowed}</span>
                                 <span>P: {ass.weight}</span>
@@ -443,7 +440,7 @@ export const GradebookView: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={handleSaveGrade}
-                                  className="bg-indigo-600 text-white px-2 py-0.5 rounded-sm hover:bg-indigo-700 font-bold"
+                                  className="bg-blue-600 text-white px-2 py-0.5 rounded-sm hover:bg-blue-700 font-bold"
                                 >
                                   OK
                                 </button>
@@ -479,18 +476,18 @@ export const GradebookView: React.FC = () => {
                       {formatGrade(calc.finalAverage)}
                     </td>
 
-                    {/* Status Badge */}
-                    <td className="px-3 py-2 text-center">
-                      {calc.finalAverage === null ? (
-                        <span className="text-[10px] text-slate-400">Em Aberto</span>
+                    {/* Situation Status */}
+                    <td className="px-3 py-2 text-center font-semibold text-xs border-slate-100 dark:border-slate-800">
+                      {calc.status === 'empty' ? (
+                        <span className="text-slate-400 font-normal">Sem avaliações</span>
+                      ) : calc.status === 'incomplete' ? (
+                        <Badge variant="warning">Pendente</Badge>
+                      ) : calc.finalAverage === null ? (
+                        <span className="text-slate-400 font-normal">Sem média</span>
                       ) : calc.finalAverage >= settings.passingGrade ? (
-                        <span className="inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
-                          Aprovado
-                        </span>
+                        <Badge variant="success">Aprovado</Badge>
                       ) : (
-                        <span className="inline-flex items-center rounded-md bg-rose-100 dark:bg-rose-950 px-2 py-0.5 text-[10px] font-bold text-rose-800 dark:text-rose-300">
-                          Abaixo ({formatGrade(settings.passingGrade - calc.finalAverage)} pts)
-                        </span>
+                        <Badge variant="danger">Recuperação</Badge>
                       )}
                     </td>
                   </tr>
@@ -501,47 +498,37 @@ export const GradebookView: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Instruction Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1 gap-2">
-        <span>
-          💡 <strong>Dica de uso:</strong> Clique em qualquer célula para digitar a nota (ex: 8,5 ou 9.0) ou selecionar falta/dispensa. Pressione Enter para salvar instantaneamente.
-        </span>
-        <span className="font-mono">
-          {classStudents.length} alunos listados nesta turma
-        </span>
-      </div>
-
-      {/* New Assessment Modal */}
+      {/* New Assessment Form Modal */}
       <Modal
         isOpen={isAssessmentModalOpen}
         onClose={() => setIsAssessmentModalOpen(false)}
-        title={`Cadastrar Instrumento Avaliativo • ${selectedPeriod}º Bimestre`}
+        title="Criar Novo Instrumento de Avaliação"
         maxWidth="lg"
       >
         <form onSubmit={handleAddAssessmentSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              Nome da Avaliação *
+              Título / Descrição da Avaliação *
             </label>
             <input
               type="text"
               required
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="Ex: P1 - Prova Bimestral de Termodinâmica"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              placeholder="Ex: Prova 1: Cinemática Escalar e MRUV"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Tipo da Atividade
+                Tipo de Instrumento
               </label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="prova">Prova Teórica / Prática</option>
                 <option value="trabalho">Trabalho / Relatório Laboratorial</option>
@@ -564,7 +551,7 @@ export const GradebookView: React.FC = () => {
                 required
                 value={newWeight}
                 onChange={(e) => setNewWeight(Number(e.target.value))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -580,7 +567,7 @@ export const GradebookView: React.FC = () => {
                 max="100"
                 value={newMaxGrade}
                 onChange={(e) => setNewMaxGrade(Number(e.target.value))}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -592,7 +579,7 @@ export const GradebookView: React.FC = () => {
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -606,24 +593,26 @@ export const GradebookView: React.FC = () => {
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
               placeholder="Ex: Permitido uso de formulário oficial e calculadora científica..."
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
+            <Button
               type="button"
+              variant="subtle"
+              size="sm"
               onClick={() => setIsAssessmentModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+              variant="primary"
+              size="sm"
             >
               Cadastrar Avaliação
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

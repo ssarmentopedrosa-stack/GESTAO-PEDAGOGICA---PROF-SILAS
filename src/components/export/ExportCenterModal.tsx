@@ -20,6 +20,7 @@ import {
   downloadSampleSpreadsheetTemplate
 } from '../../utils/exportUtils';
 import { Modal } from '../common/Modal';
+import { Button } from '../common/Button';
 
 interface ExportCenterModalProps {
   isOpen: boolean;
@@ -90,7 +91,7 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
             <select
               value={exportTargetClassId}
               onChange={(e) => setExportTargetClassId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-semibold"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {classes.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -105,7 +106,7 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
             <select
               value={exportPeriod}
               onChange={(e) => setExportPeriod(Number(e.target.value))}
-              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-semibold"
+              className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {[1, 2, 3, 4].map(p => (
                 <option key={p} value={p}>{p}º Bimestre</option>
@@ -117,16 +118,16 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
         {/* Format Selector */}
         <div>
           <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-2">
-            Formato de Saída:
+            Formato Padrão de Saída:
           </label>
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setFormat('xlsx')}
-              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition-colors ${
                 format === 'xlsx'
                   ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -136,27 +137,27 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
             <button
               type="button"
               onClick={() => setFormat('csv')}
-              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition-colors ${
                 format === 'csv'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
-                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <Download className="h-4 w-4" />
-              <span>CSV (Excel UTF-8)</span>
+              <span>CSV (UTF-8)</span>
             </button>
 
             <button
               type="button"
               onClick={() => setFormat('pdf')}
-              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition ${
+              className={`p-2.5 rounded-lg border text-xs font-bold flex items-center justify-center space-x-2 transition-colors ${
                 format === 'pdf'
                   ? 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <FileText className="h-4 w-4" />
-              <span>PDF Pronto p/ Impressão</span>
+              <span>PDF A4 Oficial</span>
             </button>
           </div>
         </div>
@@ -164,9 +165,9 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
         {/* Document Action Cards */}
         <div className="space-y-3">
           {/* Boletim Individual (PDF A4) */}
-          <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 transition-colors flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
-              <strong className="text-xs text-indigo-950 dark:text-indigo-200 block">
+              <strong className="text-xs text-blue-950 dark:text-blue-200 block">
                 Boletim Individual do Estudante (PDF A4 Oficial)
               </strong>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-2">
@@ -177,7 +178,7 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
                 <select
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-slate-200 max-w-[240px]"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-slate-200 max-w-[240px] focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 >
                   {targetClassStudents.map(st => (
                     <option key={st.id} value={st.id}>{st.name} ({st.registration})</option>
@@ -185,16 +186,18 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
                 </select>
               </div>
             </div>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleExportStudentPDF}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0 shadow-xs"
+              className="shrink-0"
             >
               Emitir Boletim A4
-            </button>
+            </Button>
           </div>
 
           {/* Diário Completo de Notas */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition flex items-center justify-between">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors flex items-center justify-between">
             <div>
               <strong className="text-xs text-slate-900 dark:text-white block">
                 Diário Completo de Notas / Ata de Rendimento
@@ -203,16 +206,18 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
                 Matriz de notas com pesos, faltas, médias regulares e de recuperação da turma selecionada.
               </span>
             </div>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleExportGradebook}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0"
+              className="shrink-0"
             >
               Baixar Agora
-            </button>
+            </Button>
           </div>
 
           {/* Lista de Alunos */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition flex items-center justify-between">
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors flex items-center justify-between">
             <div>
               <strong className="text-xs text-slate-900 dark:text-white block">
                 Listagem Nominal e Cadastral dos Alunos
@@ -221,12 +226,14 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
                 Matrículas, nomes completos, cursos técnicos e telefones dos responsáveis.
               </span>
             </div>
-            <button
+            <Button
+              variant="success"
+              size="sm"
               onClick={handleExportClassList}
-              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shrink-0"
+              className="shrink-0"
             >
               Baixar Agora
-            </button>
+            </Button>
           </div>
 
           {/* Modelo em Branco */}
@@ -236,15 +243,17 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
                 Modelos Padronizados para Preenchimento Offline
               </strong>
               <span className="text-[11px] text-slate-500">
-                Planilhas modelo com cabeçalhos pré-formatados e exemplos demonstrativos fictícios.
+                Planilhas modelo com cabeçalhos pré-formatados para importação em massa.
               </span>
             </div>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => downloadSampleSpreadsheetTemplate('xlsx')}
-              className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs shrink-0"
+              className="shrink-0"
             >
               Baixar Modelo
-            </button>
+            </Button>
           </div>
         </div>
       </div>

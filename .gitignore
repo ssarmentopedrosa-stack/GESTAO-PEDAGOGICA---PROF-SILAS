@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+.vercel/
+.nitro/
+.output/
+.grok/
+*.local
+*.tmp
+pglite.data

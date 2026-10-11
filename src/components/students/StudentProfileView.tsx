@@ -2,21 +2,24 @@ import React, { useMemo } from 'react';
 import {
   ArrowLeft,
   Download,
-  Calendar,
   BookOpen,
+  Calendar,
   Award,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  UserCheck,
   HeartHandshake,
   TrendingUp,
+  Percent,
+  CheckCircle2,
+  AlertTriangle,
   FileText
 } from 'lucide-react';
 import { useAcademic } from '../../context/AcademicContext';
 import { calculatePeriodGrade, calculateNeededGrade, formatGrade } from '../../utils/calculations';
 import { exportIndividualReportCardPDF } from '../../utils/exportUtils';
 import { Badge } from '../common/Badge';
+import { PageHeader } from '../common/PageHeader';
+import { Button } from '../common/Button';
+import { Card } from '../common/Card';
+import { StatCard } from '../common/StatCard';
 
 interface StudentProfileViewProps {
   studentId: string;
@@ -31,7 +34,7 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
     grades,
     qualitative,
     attendance,
-    settings
+    settings,
   } = useAcademic();
 
   const student = students.find(s => s.id === studentId);
@@ -41,22 +44,46 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
   const classAssessments = useMemo(() => {
     if (!student) return [];
     return assessments.filter(a => a.classId === student.classId);
-  }, [assessments, student]);
+  }, [student, assessments]);
 
-  // Qualitative notes for this student
-  const studentQualitative = useMemo(() => {
-    return qualitative.filter(q => q.studentId === studentId);
-  }, [qualitative, studentId]);
+  // Calculations across all 4 periods
+  const periodResults = useMemo(() => {
+    if (!student) return {};
+    const res: Record<number, ReturnType<typeof calculatePeriodGrade>> = {};
+    for (let p = 1; p <= settings.periodsCount; p++) {
+      res[p] = calculatePeriodGrade(
+        p,
+        classAssessments,
+        grades,
+        student.id,
+        settings.calculationMode,
+        settings.recoveryPolicy
+      );
+    }
+    return res;
+  }, [student, classAssessments, grades, settings]);
+
+  // Cumulative Annual Average
+  const annualAvg = useMemo(() => {
+    const validGrades = Object.values(periodResults)
+      .map(r => r.finalAverage)
+      .filter((g): g is number => g !== null && typeof g === 'number');
+
+    if (validGrades.length === 0) return null;
+    const sum = validGrades.reduce((a, b) => a + b, 0);
+    return Number((sum / validGrades.length).toFixed(2));
+  }, [periodResults]);
 
   // Attendance stats for this student
   const attendanceStats = useMemo(() => {
+    if (!student) return { total: 0, present: 0, absent: 0, justified: 0, late: 0, rate: 100 };
     let present = 0;
     let absent = 0;
     let justified = 0;
     let late = 0;
 
     attendance.forEach(att => {
-      const rec = att.records[studentId];
+      const rec = att.records[student.id];
       if (rec) {
         if (rec.status === 'present') present++;
         else if (rec.status === 'absent') absent++;
@@ -67,35 +94,16 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
 
     const total = present + absent + justified + late;
     const rate = total > 0 ? ((present + justified + late) / total) * 100 : 100;
-
     return { total, present, absent, justified, late, rate };
-  }, [attendance, studentId]);
+  }, [student, attendance]);
 
-  // Period calculations (1 a 4)
-  const periodResults = useMemo(() => {
-    if (!student) return {};
-    const map: Record<number, ReturnType<typeof calculatePeriodGrade>> = {};
-    for (let p = 1; p <= settings.periodsCount; p++) {
-      map[p] = calculatePeriodGrade(
-        p,
-        classAssessments,
-        grades,
-        student.id,
-        settings.calculationMode,
-        settings.recoveryPolicy
-      );
-    }
-    return map;
-  }, [student, classAssessments, grades, settings]);
+  // Qualitative notes for this student
+  const studentQualitative = useMemo(() => {
+    if (!student) return [];
+    return qualitative.filter(q => q.studentId === student.id).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [student, qualitative]);
 
-  // Annual calculation
-  const annualAvg = useMemo(() => {
-    const list = Object.values(periodResults).filter(p => p.finalAverage !== null).map(p => p.finalAverage as number);
-    if (list.length === 0) return null;
-    return Number((list.reduce((acc, c) => acc + c, 0) / list.length).toFixed(2));
-  }, [periodResults]);
-
-  // Needed for passing
+  // Needed grade projection
   const neededScore = useMemo(() => {
     return calculateNeededGrade(periodResults, settings.passingGrade, settings.periodsCount);
   }, [periodResults, settings]);
@@ -104,103 +112,87 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
     return (
       <div className="p-8 text-center">
         <p className="text-slate-500 text-sm">Estudante não encontrado.</p>
-        <button onClick={onBack} className="mt-4 text-xs font-semibold text-indigo-600 hover:underline">
+        <Button variant="subtle" size="sm" onClick={onBack} className="mt-4">
           Voltar para a lista
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Navigation & Profile Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={onBack}
-            className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            title="Voltar"
+      {/* Top Header */}
+      <PageHeader
+        title={student.name}
+        subtitle={`Matrícula: ${student.registration} · Turma: ${student.className} · Curso: ${student.technicalCourse}`}
+        breadcrumbs={[
+          { label: 'Estudantes', onClick: onBack },
+          { label: student.name }
+        ]}
+        badge={
+          <Badge variant={student.status === 'active' ? 'success' : 'neutral'}>
+            {student.status === 'active' ? 'Matrícula Ativa' : student.status}
+          </Badge>
+        }
+        actions={
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => exportIndividualReportCardPDF(student, studentClass, assessments, grades, qualitative, attendance, settings)}
+            leftIcon={<Download className="h-4 w-4" />}
           >
-            <ArrowLeft className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-          </button>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                {student.name}
-              </h2>
-              <Badge variant={student.status === 'active' ? 'success' : 'neutral'}>
-                {student.status === 'active' ? 'Matrícula Ativa' : student.status}
-              </Badge>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
-              Matrícula: {student.registration} • Turma: {student.className} • Curso: {student.technicalCourse}
-            </p>
-          </div>
-        </div>
-
-        {/* Action: Generate Official PDF Report Card */}
-        <button
-          onClick={() => exportIndividualReportCardPDF(student, studentClass, assessments, grades, qualitative, attendance, settings)}
-          className="inline-flex items-center space-x-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-sm transition"
-        >
-          <Download className="h-4 w-4" />
-          <span>Emitir Boletim Oficial (PDF)</span>
-        </button>
-      </div>
+            Emitir Boletim Oficial (PDF)
+          </Button>
+        }
+      />
 
       {/* KPI Highlights: Annual Average, Attendance Rate, Needed Grade */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Cumulative Annual Average */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Média Anual Acumulada</span>
-          <div className="flex items-baseline space-x-2 mt-2">
-            <span className={`text-2xl font-bold ${
-              annualAvg === null ? 'text-slate-400' : annualAvg >= settings.passingGrade ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
-            }`}>
-              {formatGrade(annualAvg)}
-            </span>
-            <span className="text-xs text-slate-400">/ 10,0</span>
-          </div>
-          <span className="text-[11px] text-slate-500 block mt-1">
-            Média mínima para aprovação: {formatGrade(settings.passingGrade)}
-          </span>
-        </div>
+        <StatCard
+          label="Média Anual Acumulada"
+          value={formatGrade(annualAvg)}
+          description={`Meta de aprovação: ${formatGrade(settings.passingGrade)}`}
+          subtext="Calculada com base nos bimestres consolidados"
+          icon={<Award className="h-5 w-5" />}
+          accentColor={annualAvg === null ? 'slate' : annualAvg >= settings.passingGrade ? 'emerald' : 'rose'}
+        />
 
-        {/* Attendance Rate */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Frequência Escolar</span>
-          <div className="flex items-baseline space-x-2 mt-2">
-            <span className={`text-2xl font-bold ${
-              attendanceStats.rate < 75 ? 'text-rose-600' : 'text-slate-900 dark:text-white'
-            }`}>
-              {attendanceStats.rate.toFixed(1)}%
-            </span>
-            <span className="text-xs text-slate-400">({attendanceStats.absent} faltas)</span>
-          </div>
-          <span className="text-[11px] text-slate-500 block mt-1">
-            Total de {attendanceStats.total} aulas ministradas
-          </span>
-        </div>
+        <StatCard
+          label="Frequência Escolar"
+          value={`${attendanceStats.rate.toFixed(1)}%`}
+          description={`${attendanceStats.absent} faltas acumuladas`}
+          subtext={`Total de ${attendanceStats.total} aulas registradas`}
+          icon={<Calendar className="h-5 w-5" />}
+          accentColor={attendanceStats.rate < 75 ? 'rose' : 'blue'}
+        />
 
-        {/* Projection / Needed Grade */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Projeção para Aprovação</span>
-          <div className="flex items-baseline space-x-2 mt-2">
-            <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-              {neededScore !== null ? formatGrade(neededScore) : '-'}
-            </span>
-            <span className="text-xs text-slate-400">pontos/bimestre restante</span>
-          </div>
-          <span className="text-[11px] text-slate-500 block mt-1">
-            {neededScore === 0 ? 'Já atingiu pontuação suficiente para aprovação!' : 'Nota necessária nos próximos bimestres'}
-          </span>
-        </div>
+        <StatCard
+          label="Projeção para Aprovação"
+          value={neededScore !== null ? formatGrade(neededScore) : '-'}
+          description={neededScore === 0 ? 'Meta já atingida!' : 'Pontos necessários por bimestre restante'}
+          subtext="Estimativa dinâmica segundo o plano letivo"
+          icon={<TrendingUp className="h-5 w-5" />}
+          accentColor="teal"
+        />
       </div>
+
+      {/* General Pedagogical Observations if present */}
+      {student.observations && (
+        <Card variant="subtle">
+          <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 flex items-center space-x-1.5">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span>Parecer Pedagógico Geral / Observações de Matrícula</span>
+          </h4>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">
+            "{student.observations}"
+          </p>
+        </Card>
+      )}
 
       {/* Bimestres Breakdown (Cards 1 to 4) */}
       <div>
         <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center space-x-2">
-          <BookOpen className="h-4 w-4 text-indigo-600" />
+          <BookOpen className="h-4 w-4 text-blue-600" />
           <span>Detalhamento dos Instrumentos Avaliativos por Bimestre</span>
         </h3>
 
@@ -210,9 +202,9 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
             const pAss = classAssessments.filter(a => a.period === p);
 
             return (
-              <div
+              <Card
                 key={p}
-                className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs flex flex-col justify-between"
+                className="flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -251,7 +243,7 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
                 <div className="mt-4 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 space-y-0.5">
                   <div className="flex justify-between">
                     <span>Média Regular:</span>
-                    <span className="font-bold">{formatGrade(calc?.regularAverage)}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{formatGrade(calc?.regularAverage)}</span>
                   </div>
                   {calc?.recoveryGrade !== null && (
                     <div className="flex justify-between text-amber-600 font-semibold">
@@ -260,17 +252,17 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
                     </div>
                   )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
       </div>
 
       {/* Formative / Qualitative Timeline */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
+      <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-            <HeartHandshake className="h-4 w-4 text-indigo-600" />
+            <HeartHandshake className="h-4 w-4 text-blue-600" />
             <span>Linha do Tempo de Avaliações Qualitativas e Pareceres Formativos</span>
           </h3>
           <span className="text-xs text-slate-500">
@@ -311,7 +303,7 @@ export const StudentProfileView: React.FC<StudentProfileViewProps> = ({ studentI
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

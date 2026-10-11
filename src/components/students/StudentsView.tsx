@@ -18,6 +18,9 @@ import { Student } from '../../types';
 import { exportStudentsToExcel, exportStudentsToCSV, exportIndividualReportCardPDF } from '../../utils/exportUtils';
 import { Modal } from '../common/Modal';
 import { Badge } from '../common/Badge';
+import { PageHeader } from '../common/PageHeader';
+import { Button } from '../common/Button';
+import { EmptyState } from '../common/EmptyState';
 
 interface StudentsViewProps {
   onSelectStudentProfile: (studentId: string) => void;
@@ -120,6 +123,18 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
       return;
     }
 
+    if (!formName.trim() || !formReg.trim()) {
+      setFormError('Preencha os campos obrigatórios (Nome e Matrícula).');
+      return;
+    }
+
+    // Check unique registration if creating or changing
+    const duplicate = students.find(s => s.registration === formReg.trim() && s.id !== editingStudent?.id);
+    if (duplicate) {
+      setFormError(`Já existe um estudante com a matrícula ${formReg.trim()} (${duplicate.name}).`);
+      return;
+    }
+
     try {
       if (editingStudent) {
         await updateStudent({
@@ -131,86 +146,83 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
           gradeYear: targetClass.gradeYear,
           technicalCourse: targetClass.technicalCourse,
           status: formStatus,
-          email: formEmail.trim(),
-          guardianContact: formGuardian.trim(),
-          observations: formObs.trim(),
+          email: formEmail.trim() || undefined,
+          guardianContact: formGuardian.trim() || undefined,
+          observations: formObs.trim() || undefined,
           updatedAt: new Date().toISOString()
         });
+        showToast('Estudante atualizado com sucesso!');
       } else {
         await createStudent({
           name: formName.trim(),
           registration: formReg.trim(),
-          academicYear: settings.academicYear,
           classId: targetClass.id,
           className: targetClass.name,
           gradeYear: targetClass.gradeYear,
           technicalCourse: targetClass.technicalCourse,
+          academicYear: settings.academicYear,
           status: formStatus,
-          email: formEmail.trim(),
-          guardianContact: formGuardian.trim(),
-          observations: formObs.trim(),
+          email: formEmail.trim() || undefined,
+          guardianContact: formGuardian.trim() || undefined,
+          observations: formObs.trim() || undefined,
         });
+        showToast('Estudante cadastrado com sucesso!');
       }
+
       setIsModalOpen(false);
     } catch (err: any) {
-      setFormError(err.message || 'Erro ao salvar estudante.');
+      setFormError(err.message || 'Falha ao salvar estudante.');
     }
   };
 
-  // Delete student with confirmation
-  const handleDeleteStudent = (student: Student) => {
-    if (confirm(`Tem certeza que deseja remover o estudante ${student.name} (${student.registration})? Esta ação não pode ser desfeita.`)) {
-      removeStudent(student.id);
+  const handleDeleteStudent = (st: Student) => {
+    if (confirm(`Excluir permanentemente o estudante ${st.name} (Matrícula: ${st.registration}) e todo o seu histórico pedagógico?`)) {
+      removeStudent(st.id);
     }
   };
 
   return (
     <div className="space-y-5">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Gestão de Estudantes
-            </h2>
-            <Badge variant="info">
-              {students.length} Total • {filteredStudents.length} Filtrados
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Cadastro, consulta rápida, enturmação, emissão de boletins individuais e histórico pedagógico.
-          </p>
-        </div>
+      <PageHeader
+        title="Cadastro & Gestão de Estudantes"
+        subtitle={`Listagem nominal com matrícula, curso técnico integrado e prontuário acadêmico (${students.length} estudantes no total).`}
+        badge={
+          <Badge variant="info">
+            {filteredStudents.length} {filteredStudents.length === 1 ? 'estudante' : 'estudantes'}
+          </Badge>
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportStudentsToExcel(filteredStudents, 'Listagem_Geral')}
+              leftIcon={<FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />}
+            >
+              Excel
+            </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Export to Excel */}
-          <button
-            onClick={() => exportStudentsToExcel(filteredStudents, filterClass !== 'all' ? classes.find(c => c.id === filterClass)?.name : undefined)}
-            className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Exportar Excel</span>
-          </button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportStudentsToCSV(filteredStudents, 'Listagem_Geral')}
+              leftIcon={<Download className="h-3.5 w-3.5" />}
+            >
+              CSV
+            </Button>
 
-          {/* Export to CSV */}
-          <button
-            onClick={() => exportStudentsToCSV(filteredStudents, filterClass !== 'all' ? classes.find(c => c.id === filterClass)?.name : undefined)}
-            className="inline-flex items-center space-x-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-2xs"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>CSV</span>
-          </button>
-
-          {/* New Student */}
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center space-x-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-xs"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Novo Estudante</span>
-          </button>
-        </div>
-      </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenCreateModal}
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Novo Estudante
+            </Button>
+          </>
+        }
+      />
 
       {/* Filter and Search Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -225,7 +237,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               setCurrentPage(1);
             }}
             placeholder="Buscar por nome, matrícula ou turma..."
-            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -237,7 +249,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               setFilterClass(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas as Turmas ({classes.length})</option>
             {classes.map(c => (
@@ -254,7 +266,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               setFilterStatus(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas as Situações</option>
             <option value="active">Apenas Ativos</option>
@@ -267,28 +279,40 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
 
       {/* High Performance Table */}
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px]">
-              <tr>
-                <th className="px-4 py-3">Matrícula</th>
-                <th className="px-4 py-3">Nome Completo</th>
-                <th className="px-4 py-3">Turma & Série</th>
-                <th className="px-4 py-3">Curso Técnico Integrado</th>
-                <th className="px-4 py-3 text-center">Situação</th>
-                <th className="px-4 py-3 text-right">Ações Pedagógicas</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {paginatedStudents.length === 0 ? (
+        {paginatedStudents.length === 0 ? (
+          <div className="p-8">
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title="Nenhum estudante encontrado"
+              description="Ajuste os filtros de pesquisa ou cadastre um novo estudante na turma."
+              action={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenCreateModal}
+                  leftIcon={<Plus className="h-4 w-4" />}
+                >
+                  Cadastrar Estudante
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px]">
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-xs">
-                    Nenhum estudante encontrado com os filtros selecionados.
-                  </td>
+                  <th className="px-4 py-3">Matrícula</th>
+                  <th className="px-4 py-3">Nome Completo</th>
+                  <th className="px-4 py-3">Turma & Série</th>
+                  <th className="px-4 py-3">Curso Técnico Integrado</th>
+                  <th className="px-4 py-3 text-center">Situação</th>
+                  <th className="px-4 py-3 text-right">Ações Pedagógicas</th>
                 </tr>
-              ) : (
-                paginatedStudents.map(st => (
-                  <tr key={st.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                {paginatedStudents.map(st => (
+                  <tr key={st.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-4 py-2.5 font-mono text-slate-500 text-[11px]">
                       {st.registration}
                     </td>
@@ -311,7 +335,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                         {/* 360 Profile */}
                         <button
                           onClick={() => onSelectStudentProfile(st.id)}
-                          className="px-2 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-medium text-[11px]"
+                          className="px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-medium text-[11px] transition-colors"
                           title="Visualizar histórico 360º"
                         >
                           Perfil 360º
@@ -328,7 +352,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                             attendance,
                             settings
                           )}
-                          className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="p-1 rounded-md text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                           title="Emitir Boletim PDF"
                         >
                           <FileText className="h-4 w-4" />
@@ -337,7 +361,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                         {/* Edit */}
                         <button
                           onClick={() => handleOpenEditModal(st)}
-                          className="p-1 rounded-md text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          className="p-1 rounded-md text-slate-500 hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                           title="Editar Cadastro"
                         >
                           <Edit className="h-4 w-4" />
@@ -346,7 +370,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                         {/* Delete */}
                         <button
                           onClick={() => handleDeleteStudent(st)}
-                          className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                          className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                           title="Excluir Estudante"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -354,11 +378,11 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Pagination Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 gap-3">
@@ -371,13 +395,13 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300"
+              className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               <option value={20}>20 por página</option>
               <option value={35}>35 por página</option>
               <option value={50}>50 por página</option>
               <option value={100}>100 por página</option>
-              <option value={500}>Todos (430+)</option>
+              <option value={500}>Todos ({students.length})</option>
             </select>
           </div>
 
@@ -385,7 +409,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
-              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -393,7 +417,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages}
-              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -410,7 +434,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
       >
         <form onSubmit={handleSaveStudentSubmit} className="space-y-4">
           {formError && (
-            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-start space-x-2">
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-start space-x-2">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{formError}</span>
             </div>
@@ -426,7 +450,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="Ex: Ana Carolina Silva"
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -441,7 +465,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                 value={formReg}
                 onChange={(e) => setFormReg(e.target.value)}
                 placeholder="Ex: 20261042"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -452,7 +476,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               <select
                 value={formStatus}
                 onChange={(e) => setFormStatus(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="active">Ativo</option>
                 <option value="transferred">Transferido</option>
@@ -470,7 +494,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               required
               value={formClassId}
               onChange={(e) => setFormClassId(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             >
               {classes.map(c => (
                 <option key={c.id} value={c.id}>
@@ -490,7 +514,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
                 placeholder="aluno@escola.sp.gov.br"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -503,7 +527,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
                 value={formGuardian}
                 onChange={(e) => setFormGuardian(e.target.value)}
                 placeholder="(11) 98765-4321"
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -517,24 +541,26 @@ export const StudentsView: React.FC<StudentsViewProps> = ({ onSelectStudentProfi
               value={formObs}
               onChange={(e) => setFormObs(e.target.value)}
               placeholder="Anotações de acolhimento, necessidades específicas ou histórico prévio..."
-              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
+            <Button
               type="button"
+              variant="subtle"
+              size="sm"
               onClick={() => setIsModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs"
+              variant="primary"
+              size="sm"
             >
               {editingStudent ? 'Salvar Alterações' : 'Cadastrar Estudante'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

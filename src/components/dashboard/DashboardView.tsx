@@ -13,12 +13,18 @@ import {
   BookOpenCheck,
   ChevronRight,
   FileText,
-  Filter
+  Filter,
+  CalendarCheck2,
+  HeartHandshake
 } from 'lucide-react';
 import { useAcademic } from '../../context/AcademicContext';
 import { calculatePeriodGrade, formatGrade, formatPercent } from '../../utils/calculations';
 import { exportIndividualReportCardPDF } from '../../utils/exportUtils';
 import { Badge } from '../common/Badge';
+import { StatCard } from '../common/StatCard';
+import { PageHeader } from '../common/PageHeader';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
 
 interface DashboardViewProps {
   onNavigateToTab: (tab: any) => void;
@@ -137,7 +143,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
         reasons.push(`Média ${formatGrade(calc.finalAverage)} abaixo de ${formatGrade(settings.passingGrade)}`);
       }
       if (attRate < 75 && attInfo.total > 0) {
-        reasons.push(`Frequência crítica (${attRate.toFixed(0)}% com ${attInfo.absent} faltas)`);
+        reasons.push(`Frequência ${attRate.toFixed(0)}% com ${attInfo.absent} faltas`);
       }
       if (calc.pendingAssessmentsCount > 0) {
         reasons.push(`${calc.pendingAssessmentsCount} instrumento(s) pendente(s)`);
@@ -150,7 +156,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
           attendancePercent: attRate,
           absencesCount: attInfo.absent,
           pendingCount: calc.pendingAssessmentsCount,
-          reason: reasons.join(' • ')
+          reason: reasons.join(' · ')
         });
       }
     });
@@ -232,37 +238,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
 
   return (
     <div className="space-y-6">
-      {/* Top Banner Context */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Painel Geral de Desempenho
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Métricas acadêmicas e diagnósticos pedagógicos de {settings.subjectName || 'Física'} • {selectedPeriod}º Bimestre de {settings.academicYear}
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="info">
-            {selectedClassId === 'all' ? 'Visão Consolidada (Todas as Turmas)' : classes.find(c => c.id === selectedClassId)?.name}
-          </Badge>
-          <Badge variant="neutral">
-            Escala: 0 a {settings.gradeScale || 10} • Média: {formatGrade(settings.passingGrade)}
-          </Badge>
-        </div>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Painel Geral de Desempenho"
+        subtitle={`Métricas e diagnósticos acadêmicos de ${settings.subjectName || 'Física'} • ${selectedPeriod}º Bimestre • Ano ${settings.academicYear}`}
+        badge={
+          <div className="flex items-center gap-2">
+            <Badge variant="info">
+              {selectedClassId === 'all' ? 'Todas as Turmas' : classes.find(c => c.id === selectedClassId)?.name}
+            </Badge>
+            <Badge variant="neutral">
+              Escala: 0 a {settings.gradeScale || 10} · Meta: {formatGrade(settings.passingGrade)}
+            </Badge>
+          </div>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigateToTab('gradebook')}
+              leftIcon={<BookOpenCheck className="h-4 w-4 text-blue-600" />}
+            >
+              Abrir Diário
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onNavigateToTab('attendance')}
+              leftIcon={<CalendarCheck2 className="h-4 w-4 text-emerald-600" />}
+            >
+              Fazer Chamada
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Interactive Quick Scope Filters */}
+      {/* Scope Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center space-x-2">
-          <Filter className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Escopo do Painel:</span>
+          <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Filtro do Painel:</span>
           <select
             value={selectedClassId}
             onChange={(e) => setSelectedClassId(e.target.value)}
-            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Todas as 12 Turmas (Visão Consolidada)</option>
+            <option value="all">Todas as {classes.length} Turmas (Visão Consolidada)</option>
             {classes.map(c => (
               <option key={c.id} value={c.id}>{c.name} ({c.technicalCourse})</option>
             ))}
@@ -276,9 +298,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
               key={p}
               type="button"
               onClick={() => setSelectedPeriod(p)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                 selectedPeriod === p
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-blue-600 text-white shadow-xs'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
@@ -288,134 +310,92 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
         </div>
       </div>
 
-      {/* KPI Metric Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
-        {/* Total Students */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Total de Alunos</span>
-            <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-              <Users className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-            {filteredStudents.length}
-          </p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {classes.length} turmas cadastradas
-          </span>
-        </div>
+      {/* KPI Stat Cards Grid - Clickable directly into modules */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        <StatCard
+          label="Total de Alunos"
+          value={filteredStudents.length}
+          description={`${classes.length} turmas ativas`}
+          icon={<Users className="h-5 w-5" />}
+          accentColor="blue"
+          onClick={() => onNavigateToTab('students')}
+        />
 
-        {/* General Average */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Média Geral ({selectedPeriod}º B)</span>
-            <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-            {formatGrade(stats.averageGrade)}
-          </p>
-          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-            Meta mínima: {formatGrade(settings.passingGrade)}
-          </span>
-        </div>
+        <StatCard
+          label={`Média (${selectedPeriod}º B)`}
+          value={formatGrade(stats.averageGrade)}
+          description={`Meta: ${formatGrade(settings.passingGrade)}`}
+          icon={<TrendingUp className="h-5 w-5" />}
+          accentColor="emerald"
+          onClick={() => onNavigateToTab('gradebook')}
+        />
 
-        {/* Satisfactory Rate */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Rendimento Satisfatório</span>
-            <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-            {stats.satisfactoryPercent.toFixed(1)}%
-          </p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {stats.satisfactoryCount} estudantes ≥ {formatGrade(settings.passingGrade)}
-          </span>
-        </div>
+        <StatCard
+          label="Rendimento"
+          value={`${stats.satisfactoryPercent.toFixed(0)}%`}
+          description={`${stats.satisfactoryCount} acima da média`}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          accentColor="teal"
+          onClick={() => onNavigateToTab('gradebook')}
+        />
 
-        {/* Below Passing Grade */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Abaixo da Média</span>
-            <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-rose-600 dark:text-rose-400">
-            {stats.belowAverageCount}
-          </p>
-          <span className="text-[11px] text-rose-500 dark:text-rose-400 font-medium">
-            Necessitam recuperação
-          </span>
-        </div>
+        <StatCard
+          label="Abaixo da Média"
+          value={stats.belowAverageCount}
+          description="Apoio pedagógico"
+          icon={<AlertTriangle className="h-5 w-5" />}
+          accentColor="rose"
+          onClick={() => onNavigateToTab('reports')}
+        />
 
-        {/* Pending Grades */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Com Pendências</span>
-            <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-              <Clock className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
-            {stats.pendingCount}
-          </p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            Atividades a lançar
-          </span>
-        </div>
+        <StatCard
+          label="Pendências"
+          value={stats.pendingCount}
+          description="Avaliações em aberto"
+          icon={<Clock className="h-5 w-5" />}
+          accentColor="amber"
+          onClick={() => onNavigateToTab('gradebook')}
+        />
 
-        {/* Attendance Rate */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Frequência Média</span>
-            <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-              <Calendar className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
-            {stats.overallAttendanceRate.toFixed(1)}%
-          </p>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">
-            {stats.totalAbsencesCount} faltas no total
-          </span>
-        </div>
+        <StatCard
+          label="Frequência"
+          value={`${stats.overallAttendanceRate.toFixed(0)}%`}
+          description={`${stats.totalAbsencesCount} faltas totais`}
+          icon={<Calendar className="h-5 w-5" />}
+          accentColor="blue"
+          onClick={() => onNavigateToTab('attendance')}
+        />
       </div>
 
       {/* Main Analytics Row: Bimester Evolution & Grade Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Evolution Across Bimesters */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
+        <Card className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Evolução do Rendimento por Bimestre
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Acompanhamento da média geral de Física ao longo do ano letivo
+                Acompanhamento contínuo da média da disciplina de Física
               </p>
             </div>
             <button
               onClick={() => onNavigateToTab('gradebook')}
-              className="inline-flex items-center space-x-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+              className="inline-flex items-center space-x-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
             >
               <span>Abrir Diário</span>
               <ArrowRight className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {bimesterEvolution.map(b => (
               <div 
                 key={b.period}
-                className={`p-3.5 rounded-xl border ${
+                className={`p-3.5 rounded-xl border transition-colors ${
                   b.period === selectedPeriod
-                    ? 'border-indigo-500/80 bg-indigo-50/40 dark:bg-indigo-950/30'
+                    ? 'border-blue-500/80 bg-blue-50/40 dark:bg-blue-950/30'
                     : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40'
                 }`}
               >
@@ -424,23 +404,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                     {b.period}º Bimestre
                   </span>
                   {b.period === selectedPeriod && (
-                    <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+                    <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
                   )}
                 </div>
-                <div className="mt-3">
+                <div className="mt-2.5">
                   <div className="text-xl font-bold text-slate-900 dark:text-white">
                     {formatGrade(b.average)}
                   </div>
                   <div className="mt-2 w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full rounded-full ${
+                      className={`h-full rounded-full transition-all duration-300 ${
                         b.average === null ? 'bg-transparent' : b.average >= settings.passingGrade ? 'bg-emerald-500' : 'bg-rose-500'
                       }`}
                       style={{ width: `${Math.min(100, ((b.average || 0) / (settings.gradeScale || 10)) * 100)}%` }}
                     />
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
                   {b.evaluatedStudents} notas consolidadas
                 </p>
               </div>
@@ -456,7 +436,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
               {classPerformance.map(cp => (
                 <div
                   key={cp.classEntity.id}
-                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-2.5 hover:border-indigo-300 transition"
+                  onClick={() => {
+                    setSelectedClassId(cp.classEntity.id);
+                    onNavigateToTab('gradebook');
+                  }}
+                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-2.5 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition-colors"
                 >
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate" title={cp.classEntity.name}>
                     {cp.classEntity.name}
@@ -475,20 +459,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
               ))}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Grade Distribution Breakdown */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs flex flex-col justify-between">
+        <Card className="flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
               Distribuição por Faixas de Notas
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Classificação dos estudantes no {selectedPeriod}º Bimestre
+              Classificação no {selectedPeriod}º Bimestre
             </p>
 
-            <div className="space-y-3">
-              {/* Excellent: 8.0 - 10.0 */}
+            <div className="space-y-3.5">
+              {/* Excellent */}
               <div>
                 <div className="flex justify-between text-xs mb-1 font-medium">
                   <span className="text-emerald-700 dark:text-emerald-400">Excelente (8,0 - 10,0)</span>
@@ -502,7 +486,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                 </div>
               </div>
 
-              {/* Good: 6.0 - 7.9 */}
+              {/* Good */}
               <div>
                 <div className="flex justify-between text-xs mb-1 font-medium">
                   <span className="text-blue-700 dark:text-blue-400">Satisfatório (6,0 - 7,9)</span>
@@ -516,7 +500,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                 </div>
               </div>
 
-              {/* Warning: 5.0 - 5.9 */}
+              {/* Warning */}
               <div>
                 <div className="flex justify-between text-xs mb-1 font-medium">
                   <span className="text-amber-700 dark:text-amber-400">Em Alerta (5,0 - 5,9)</span>
@@ -530,7 +514,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                 </div>
               </div>
 
-              {/* Critical: 0.0 - 4.9 */}
+              {/* Critical */}
               <div>
                 <div className="flex justify-between text-xs mb-1 font-medium">
                   <span className="text-rose-700 dark:text-rose-400">Crítico (&lt; 5,0)</span>
@@ -550,26 +534,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
             <span className="font-semibold block text-slate-800 dark:text-slate-200 mb-0.5">
               Diretriz Pedagógica:
             </span>
-            Estudantes com nota final inferior a 6,0 têm direito à recuperação paralela conforme plano de ensino.
+            Estudantes com nota final inferior a {formatGrade(settings.passingGrade)} têm direito à recuperação paralela conforme plano de ensino.
           </div>
-        </div>
+        </Card>
       </div>
 
-      {/* Pedagogical Attention Radar (Estudantes que necessitam de intervenção ou plantão) */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs">
-        <div className="flex items-center justify-between mb-4">
+      {/* Pedagogical Attention Radar */}
+      <Card>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span>Estudantes que Necessitam de Acompanhamento Pedagógico</span>
+              <span>Acompanhamento Pedagógico Prioritário</span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Identificação objetiva baseada em rendimento abaixo da média, infrequência ou pendência de avaliações ({stats.needsAttentionList.length} identificados)
+              Estudantes identificados com rendimento abaixo da média, infrequência ou pendência de notas ({stats.needsAttentionList.length} identificados)
             </p>
           </div>
           <button
             onClick={() => onNavigateToTab('reports')}
-            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline shrink-0"
           >
             Ver Relatório Completo
           </button>
@@ -577,7 +561,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
 
         {stats.needsAttentionList.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs">
-            Parabéns! Todos os estudantes estão com desempenho e frequência regulares no período selecionado.
+            Nenhum estudante necessita de intervenção prioritária no período selecionado.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -595,7 +579,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {stats.needsAttentionList.slice(0, 8).map(({ student, periodGrade, attendancePercent, reason }) => (
-                  <tr key={student.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+                  <tr key={student.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="px-4 py-2.5 font-mono text-[11px] text-slate-500">
                       {student.registration}
                     </td>
@@ -632,14 +616,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                             attendance,
                             settings
                           )}
-                          className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
+                          className="p-1 rounded-md text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
                           title="Emitir Boletim PDF Individual (A4)"
                         >
                           <FileText className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => onSelectStudentProfile(student.id)}
-                          className="inline-flex items-center space-x-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium px-2 py-1 rounded-md hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
+                          className="inline-flex items-center space-x-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium px-2 py-1 rounded-md hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors"
                         >
                           <span>Perfil</span>
                           <ChevronRight className="h-3 w-3" />
@@ -652,7 +636,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
             </table>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

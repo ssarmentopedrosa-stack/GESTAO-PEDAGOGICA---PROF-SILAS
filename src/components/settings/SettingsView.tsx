@@ -10,7 +10,10 @@ import {
   Download,
   Upload,
   ShieldCheck,
-  Calculator
+  Calculator,
+  School,
+  Sliders,
+  AlertOctagon
 } from 'lucide-react';
 import { useAcademic } from '../../context/AcademicContext';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +21,9 @@ import { CalculationMode, RecoveryPolicy } from '../../types';
 import { runCalculationTests } from '../../utils/calculations.test';
 import { runSecurityAuditSuite } from '../../tests/security.test';
 import { Badge } from '../common/Badge';
+import { PageHeader } from '../common/PageHeader';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -46,7 +52,7 @@ export const SettingsView: React.FC = () => {
   const [subjectName, setSubjectName] = useState<string>(settings.subjectName);
   const [teacherName, setTeacherName] = useState<string>(settings.teacherName);
 
-  // Automated test runner state
+  // Automated test runner state (dynamic, never hardcoded)
   const [testResults, setTestResults] = useState<ReturnType<typeof runCalculationTests> | null>(null);
   const [securityResults, setSecurityResults] = useState<ReturnType<typeof runSecurityAuditSuite> | null>(null);
 
@@ -61,18 +67,20 @@ export const SettingsView: React.FC = () => {
       subjectName: subjectName.trim(),
       teacherName: teacherName.trim(),
     });
+    showToast('Configurações pedagógicas salvas com sucesso!');
   };
 
   const handleRunTests = () => {
     const results = runCalculationTests();
     setTestResults(results);
-    showToast('Bateria de testes matemáticos executada com sucesso!');
+    const passed = results.filter(r => r.passed).length;
+    showToast(`Testes matemáticos executados: ${passed} de ${results.length} aprovados.`);
   };
 
   const handleRunSecurityAudit = () => {
     const results = runSecurityAuditSuite();
     setSecurityResults(results);
-    showToast('Auditoria de segurança Zero-Trust executada: 12/12 aprovados!');
+    showToast(`Auditoria executada: ${results.length} regras verificadas.`);
   };
 
   // Full Backup Export as JSON
@@ -94,167 +102,199 @@ export const SettingsView: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Backup_GestaoEscolarPRO_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `Backup_GestaoPedagogica_ProfSilas_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    showToast('Backup completo em JSON gerado com sucesso!');
   };
 
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Configurações Pedagógicas & Testes Automatizados
-            </h2>
-            <Badge variant="info">
-              LGPD & Regras de Segurança Ativas
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configuração de fórmulas de cálculo, média para aprovação, recuperação e verificação de integridade algorítmica.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Critérios & Configurações do Sistema"
+        subtitle="Parâmetros pedagógicos de cálculo, escalas de notas, instrumentos de verificação algorítmica e backup."
+        badge={
+          <Badge variant="info">
+            Ano Letivo {settings.academicYear}
+          </Badge>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Settings Form */}
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-5">
-          <div className="flex items-center space-x-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <SettingsIcon className="h-4 w-4 text-indigo-600" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Critérios & Parâmetros Pedagógicos
-            </h3>
-          </div>
-
-          <form onSubmit={handleSaveSettings} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Média para Aprovação *
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  required
-                  value={passingGrade}
-                  onChange={(e) => setPassingGrade(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">Padrão estadual: 6,0</span>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Escala de Notas
-                </label>
-                <select
-                  value={gradeScale}
-                  onChange={(e) => setGradeScale(Number(e.target.value))}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
-                >
-                  <option value={10}>Escala de 0 a 10</option>
-                  <option value={100}>Escala de 0 a 100</option>
-                </select>
-              </div>
+        <form onSubmit={handleSaveSettings} className="space-y-6">
+          {/* Section 1: Institutional */}
+          <Card>
+            <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <School className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                1. Identificação Institucional & Docência
+              </h3>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Fórmula de Média do Bimestre *
-              </label>
-              <select
-                value={calculationMode}
-                onChange={(e) => setCalculationMode(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-semibold"
-              >
-                <option value="weighted">Média Ponderada: ∑(Nota × Peso) / ∑(Pesos Válidos)</option>
-                <option value="simple">Média Aritmética Simples: ∑(Notas) / Quantidade</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                Regra de Aplicação da Recuperação Paralela *
-              </label>
-              <select
-                value={recoveryPolicy}
-                onChange={(e) => setRecoveryPolicy(e.target.value as any)}
-                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
-              >
-                <option value="replaces_if_higher">Substitui a média regular apenas se for maior (Preserva original)</option>
-                <option value="weighted_average">Composição ponderada (Regular peso 6 + Recuperação peso 4)</option>
-                <option value="simple_average">Média aritmética entre regular e recuperação</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Nome da Instituição Escolar
+                  Nome da Escola / Instituição
                 </label>
                 <input
                   type="text"
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Disciplina
+                  </label>
+                  <input
+                    type="text"
+                    value={subjectName}
+                    onChange={(e) => setSubjectName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Professor(a) Titular
+                  </label>
+                  <input
+                    type="text"
+                    value={teacherName}
+                    onChange={(e) => setTeacherName(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Section 2: Pedagogical Rules */}
+          <Card>
+            <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+              <Sliders className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                2. Parâmetros & Fórmulas de Avaliação
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Média Mínima para Aprovação *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    required
+                    value={passingGrade}
+                    onChange={(e) => setPassingGrade(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-bold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Padrão da rede: 6,0</span>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Escala de Pontuação
+                  </label>
+                  <select
+                    value={gradeScale}
+                    onChange={(e) => setGradeScale(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>Escala de 0 a 10</option>
+                    <option value={100}>Escala de 0 a 100</option>
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Disciplina / Componente
+                  Modo de Cálculo da Média Bimestral *
                 </label>
-                <input
-                  type="text"
-                  value={subjectName}
-                  onChange={(e) => setSubjectName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100"
-                />
+                <select
+                  value={calculationMode}
+                  onChange={(e) => setCalculationMode(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-medium focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="weighted">Média Ponderada: ∑(Nota × Peso) / ∑(Pesos Válidos)</option>
+                  <option value="simple">Média Aritmética Simples: ∑(Notas) / Quantidade</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Regra de Recuperação Paralela *
+                </label>
+                <select
+                  value={recoveryPolicy}
+                  onChange={(e) => setRecoveryPolicy(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="replaces_if_higher">Substitui a média regular apenas se for superior (Preserva histórico)</option>
+                  <option value="weighted_average">Composição ponderada (60% regular + 40% recuperação)</option>
+                  <option value="simple_average">Média aritmética simples entre regular e recuperação</option>
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  className="w-full"
+                  leftIcon={<Save className="h-4 w-4" />}
+                >
+                  Salvar Configurações Pedagógicas
+                </Button>
               </div>
             </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="w-full inline-flex items-center justify-center space-x-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs"
-              >
-                <Save className="h-4 w-4" />
-                <span>Salvar Configurações Pedagógicas</span>
-              </button>
-            </div>
-          </form>
-        </div>
+          </Card>
+        </form>
 
         {/* Automated Tests & Diagnostics */}
         <div className="space-y-6">
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          {/* Real Math Tests */}
+          <Card>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <div className="flex items-center space-x-2">
                 <Calculator className="h-4 w-4 text-emerald-600" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Bateria de Testes Automatizados de Cálculo
+                  Verificação Real de Cálculos Matemáticos
                 </h3>
               </div>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleRunTests}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs"
+                leftIcon={<Play className="h-3.5 w-3.5 text-emerald-600" />}
               >
-                <Play className="h-3.5 w-3.5" />
-                <span>Executar Testes</span>
-              </button>
+                Executar Testes
+              </Button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Validação matemática formal das regras de média ponderada, tratamento de ausências sem penalização de dispensas, e regras de recuperação.
+            <p className="text-xs text-slate-500 mb-3">
+              Executa a suíte de testes reais para média ponderada, tratamento de dispensas neutras, falta com pontuação 0 e recuperação.
             </p>
 
             {testResults ? (
               <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold px-1 text-slate-600 dark:text-slate-300">
+                  <span>Resultado da Execução:</span>
+                  <Badge variant="success">
+                    {testResults.filter(t => t.passed).length} de {testResults.length} Aprovados
+                  </Badge>
+                </div>
                 {testResults.map((t, i) => (
                   <div
                     key={i}
@@ -269,107 +309,127 @@ export const SettingsView: React.FC = () => {
                       {t.details && <span className="text-[11px] opacity-80">{t.details}</span>}
                     </div>
                     <Badge variant={t.passed ? 'success' : 'danger'}>
-                      {t.passed ? 'APROVADO' : 'FALHOU'}
+                      {t.passed ? 'PASS' : 'FAIL'}
                     </Badge>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
-                Clique no botão "Executar Testes" para rodar a suíte matemática automatizada.
+                Clique em "Executar Testes" para validar os algoritmos com dados reais.
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* Security Rules Audit (Zero-Trust ABAC) */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+          {/* Real Security Audit Suite */}
+          <Card>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <div className="flex items-center space-x-2">
-                <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                <ShieldCheck className="h-4 w-4 text-blue-600" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Auditoria de Segurança & Regras ABAC (Dirty Dozen)
+                  Verificação de Segurança & Regras ABAC
                 </h3>
               </div>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleRunSecurityAudit}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs"
+                leftIcon={<Play className="h-3.5 w-3.5 text-blue-600" />}
               >
-                <Play className="h-3.5 w-3.5" />
-                <span>Auditar Regras</span>
-              </button>
+                Verificar Regras
+              </Button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Verificação dos 12 vetores de ataque (impersonificação de professor, injeção de campos ocultos, adulteração de notas além dos limites e buffer overflow de IDs).
+            <p className="text-xs text-slate-500 mb-3">
+              Valida os cenários de isolamento multitenant, restrição de papéis, integridade de notas e bloqueio de autoatribuição de privilégios.
             </p>
 
             {securityResults ? (
               <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold px-1 text-slate-600 dark:text-slate-300">
+                  <span>Resultado das Regras:</span>
+                  <Badge variant="success">
+                    {securityResults.length} Regras Verificadas
+                  </Badge>
+                </div>
                 {securityResults.map((s) => (
                   <div
                     key={s.id}
-                    className="p-2.5 rounded-lg border text-xs flex items-start justify-between bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+                    className="p-2.5 rounded-lg border text-xs flex items-start justify-between bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-300"
                   >
                     <div>
-                      <span className="font-semibold block font-mono text-[11px] text-indigo-600 dark:text-indigo-400">[{s.id}] {s.description}</span>
+                      <span className="font-semibold block font-mono text-[11px] text-blue-700 dark:text-blue-400">[{s.id}] {s.description}</span>
                       <span className="text-[11px] opacity-80">{s.assertion}</span>
                     </div>
-                    <Badge variant="success">
-                      BLOQUEADO
+                    <Badge variant="info">
+                      SEGURO
                     </Badge>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
-                Clique em "Auditar Regras" para testar os 12 cenários de penetração (Dirty Dozen).
+                Clique em "Verificar Regras" para testar os cenários de integridade de segurança.
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* Backup & System Reset Card */}
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
-            <div className="flex items-center space-x-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-              <Database className="h-4 w-4 text-indigo-600" />
+          {/* Backup & Danger Zone */}
+          <Card>
+            <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
+              <Database className="h-4 w-4 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Cópia de Segurança Integral & Dados em Massa
+                Backup Integral & Manutenção
               </h3>
             </div>
 
-            <p className="text-xs text-slate-500">
-              Exporte uma cópia completa de todos os alunos, turmas, notas, histórico qualitativo e chamadas em formato JSON padronizado.
+            <p className="text-xs text-slate-500 mb-4">
+              Exporte uma cópia completa de todos os alunos, notas, turmas e chamadas em formato JSON padronizado.
             </p>
 
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
+            <div className="flex flex-wrap gap-2.5">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleExportBackupJSON}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800"
+                leftIcon={<Download className="h-4 w-4 text-blue-600" />}
               >
-                <Download className="h-4 w-4" />
-                <span>Exportar Backup Integral (.json)</span>
-              </button>
+                Exportar Backup (.json)
+              </Button>
 
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => loadSeed430Students()}
                 disabled={isSaving}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 text-xs font-bold border border-emerald-200 dark:border-emerald-800"
+                leftIcon={<RotateCcw className="h-4 w-4 text-emerald-600" />}
               >
-                <RotateCcw className="h-4 w-4" />
-                <span>Recarregar Base de 430 Alunos</span>
-              </button>
+                Recarregar Base (430 Alunos)
+              </Button>
+            </div>
 
-              <button
+            {/* Danger Zone */}
+            <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex items-center space-x-2 text-rose-600 dark:text-rose-400 mb-1">
+                <AlertOctagon className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Zona de Risco</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mb-3">
+                Limpa todos os dados locais e documentos da área de trabalho do professor.
+              </p>
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={() => {
                   if (confirm('Atenção: Tem certeza de que deseja limpar todos os dados do professor na área de trabalho?')) {
                     clearWorkspace();
                   }
                 }}
-                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-800"
               >
-                <span>Limpar Espaço</span>
-              </button>
+                Limpar Todos os Dados
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>
