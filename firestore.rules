@@ -1,0 +1,159 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(teacherUid) {
+      return isSignedIn() && request.auth.uid == teacherUid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Default deny all unknown collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Users
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId);
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && incoming().uid == request.auth.uid
+        && incoming().email is string && incoming().email.size() <= 256
+        && incoming().role in ['teacher', 'admin', 'coordinator'];
+      allow update: if isSignedIn() && request.auth.uid == userId
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && (!('role' in incoming()) || incoming().role == existing().role);
+      allow delete: if false;
+    }
+
+    // 2. Classes (Turmas)
+    match /classes/{classId} {
+      allow get: if isSignedIn() && isValidId(classId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(classId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+        && incoming().academicYear is number;
+      allow update: if isSignedIn() && isValidId(classId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().id == existing().id;
+      allow delete: if isSignedIn() && isValidId(classId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 3. Students (Estudantes)
+    match /students/{studentId} {
+      allow get: if isSignedIn() && isValidId(studentId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(studentId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200
+        && incoming().classId is string && incoming().classId.size() <= 128
+        && incoming().status in ['active', 'transferred', 'graduated', 'inactive'];
+      allow update: if isSignedIn() && isValidId(studentId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().id == existing().id;
+      allow delete: if isSignedIn() && isValidId(studentId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 4. Assessments (Avaliações)
+    match /assessments/{assessmentId} {
+      allow get: if isSignedIn() && isValidId(assessmentId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(assessmentId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 200
+        && incoming().period is number
+        && incoming().weight is number && incoming().weight > 0
+        && incoming().maxGrade is number && incoming().maxGrade > 0;
+      allow update: if isSignedIn() && isValidId(assessmentId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().id == existing().id;
+      allow delete: if isSignedIn() && isValidId(assessmentId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 5. Grades (Notas pontuais)
+    match /grades/{gradeId} {
+      allow get: if isSignedIn() && isValidId(gradeId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(gradeId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().studentId is string && incoming().studentId.size() <= 128
+        && incoming().assessmentId is string && incoming().assessmentId.size() <= 128
+        && incoming().status in ['graded', 'pending', 'absent', 'excused', 'not_applicable']
+        && (!('value' in incoming()) || incoming().value == null || (incoming().value is number && incoming().value >= 0 && incoming().value <= 100));
+      allow update: if isSignedIn() && isValidId(gradeId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().studentId == existing().studentId
+        && incoming().assessmentId == existing().assessmentId
+        && incoming().status in ['graded', 'pending', 'absent', 'excused', 'not_applicable']
+        && (!('value' in incoming()) || incoming().value == null || (incoming().value is number && incoming().value >= 0 && incoming().value <= 100));
+      allow delete: if isSignedIn() && isValidId(gradeId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 6. Qualitative Records (Avaliação qualitativa)
+    match /qualitative/{recordId} {
+      allow get: if isSignedIn() && isValidId(recordId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(recordId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().studentId is string && incoming().studentId.size() <= 128
+        && incoming().level in ['excelente', 'bom', 'em_desenvolvimento', 'necessita_acompanhamento'];
+      allow update: if isSignedIn() && isValidId(recordId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().studentId == existing().studentId;
+      allow delete: if isSignedIn() && isValidId(recordId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 7. Attendance (Frequência diária)
+    match /attendance/{attendanceId} {
+      allow get: if isSignedIn() && isValidId(attendanceId) && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(attendanceId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().classId is string && incoming().classId.size() <= 128
+        && incoming().date is string;
+      allow update: if isSignedIn() && isValidId(attendanceId)
+        && existing().teacherUid == request.auth.uid
+        && incoming().teacherUid == existing().teacherUid
+        && incoming().classId == existing().classId;
+      allow delete: if isSignedIn() && isValidId(attendanceId)
+        && existing().teacherUid == request.auth.uid;
+    }
+
+    // 8. Settings
+    match /settings/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId);
+      allow create, update: if isSignedIn() && (request.auth.uid == userId)
+        && incoming().teacherUid == request.auth.uid
+        && incoming().passingGrade is number
+        && incoming().gradeScale is number;
+      allow delete: if false;
+    }
+  }
+}

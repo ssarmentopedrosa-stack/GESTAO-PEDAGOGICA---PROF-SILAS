@@ -1,0 +1,6 @@
+{
+  "name": "Gestão Escolar PRO",
+  "description": "Sistema completo e moderno de gerenciamento acadêmico e pedagógico para Ensino Médio e Educação Profissional, com diários de notas quantitativas, avaliações qualitativas, frequência, relatórios inteligentes e importação/exportação de planilhas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

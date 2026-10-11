@@ -1,0 +1,188 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Professor ou usuário autorizado do sistema Gestão Escolar PRO",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 256 },
+        "role": { "type": "string", "enum": ["teacher", "admin", "coordinator"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "Turma do Ensino Médio integrado à Educação Profissional",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "gradeYear": { "type": "string", "enum": ["1º Ano", "2º Ano", "3º Ano"] },
+        "technicalCourse": { "type": "string", "maxLength": 120 },
+        "academicYear": { "type": "number" },
+        "shift": { "type": "string", "enum": ["Matutino", "Vespertino", "Noturno", "Integral"] },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "studentCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "gradeYear", "technicalCourse", "academicYear", "teacherUid"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Estudante matriculado com histórico escolar e dados cadastrais",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "registration": { "type": "string", "maxLength": 64 },
+        "academicYear": { "type": "number" },
+        "classId": { "type": "string", "maxLength": 128 },
+        "className": { "type": "string", "maxLength": 100 },
+        "gradeYear": { "type": "string", "maxLength": 50 },
+        "technicalCourse": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["active", "transferred", "graduated", "inactive"] },
+        "observations": { "type": "string", "maxLength": 2000 },
+        "birthDate": { "type": "string", "maxLength": 20 },
+        "email": { "type": "string", "maxLength": 256 },
+        "guardianContact": { "type": "string", "maxLength": 100 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "academicYear", "classId", "status", "teacherUid"]
+    },
+    "Assessment": {
+      "title": "Assessment",
+      "description": "Avaliação quantitativa configurada para a disciplina e turma",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "period": { "type": "number" },
+        "type": { "type": "string", "enum": ["prova", "trabalho", "atividade", "projeto", "participacao", "recuperacao"] },
+        "maxGrade": { "type": "number" },
+        "weight": { "type": "number" },
+        "date": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "academicYear": { "type": "number" },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "classId", "period", "type", "maxGrade", "weight", "teacherUid"]
+    },
+    "Grade": {
+      "title": "Grade",
+      "description": "Nota quantitativa do estudante em uma avaliação específica",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 256 },
+        "assessmentId": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "period": { "type": "number" },
+        "value": { "type": "number" },
+        "status": { "type": "string", "enum": ["graded", "pending", "absent", "excused", "not_applicable"] },
+        "recoveryOriginalGrade": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assessmentId", "studentId", "classId", "period", "status", "teacherUid"]
+    },
+    "QualitativeRecord": {
+      "title": "QualitativeRecord",
+      "description": "Avaliação formativa qualitativa de desenvolvimento do estudante",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "period": { "type": "number" },
+        "date": { "type": "string", "maxLength": 30 },
+        "criterion": { "type": "string", "maxLength": 100 },
+        "criterionLabel": { "type": "string", "maxLength": 150 },
+        "level": { "type": "string", "enum": ["excelente", "bom", "em_desenvolvimento", "necessita_acompanhamento"] },
+        "comment": { "type": "string", "maxLength": 2000 },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "studentId", "classId", "period", "criterion", "level", "teacherUid"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Registro diário de frequência da aula e chamada dos estudantes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "subjectId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 30 },
+        "lessonTopic": { "type": "string", "maxLength": 200 },
+        "records": { "type": "object" },
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "classId", "date", "teacherUid"]
+    },
+    "SchoolSettings": {
+      "title": "SchoolSettings",
+      "description": "Configurações pedagógicas e de regras de cálculo do professor",
+      "type": "object",
+      "properties": {
+        "teacherUid": { "type": "string", "maxLength": 128 },
+        "passingGrade": { "type": "number" },
+        "gradeScale": { "type": "number" },
+        "calculationMode": { "type": "string", "enum": ["weighted", "simple"] },
+        "recoveryPolicy": { "type": "string", "enum": ["replaces_if_higher", "weighted_average", "simple_average"] },
+        "periodsCount": { "type": "number" },
+        "academicYear": { "type": "number" },
+        "schoolName": { "type": "string", "maxLength": 200 },
+        "subjectName": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherUid", "passingGrade", "gradeScale", "calculationMode"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "entities/User" },
+      "description": "Perfis dos professores e administradores autorizados"
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "entities/Class" },
+      "description": "Turmas e séries do Ensino Médio integrado"
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "entities/Student" },
+      "description": "Cadastro e histórico acadêmico dos estudantes"
+    },
+    "/assessments/{assessmentId}": {
+      "schema": { "$ref": "entities/Assessment" },
+      "description": "Instrumentos avaliativos por turma e bimestre"
+    },
+    "/grades/{gradeId}": {
+      "schema": { "$ref": "entities/Grade" },
+      "description": "Notas pontuais e situação dos estudantes nas avaliações"
+    },
+    "/qualitative/{recordId}": {
+      "schema": { "$ref": "entities/QualitativeRecord" },
+      "description": "Registros pedagógicos formativos e qualitativos"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": { "$ref": "entities/AttendanceRecord" },
+      "description": "Diário de chamada e frequência por aula"
+    },
+    "/settings/{userId}": {
+      "schema": { "$ref": "entities/SchoolSettings" },
+      "description": "Configurações e critérios de cálculo pedagógico do professor"
+    }
+  }
+}
