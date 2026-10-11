@@ -16,6 +16,7 @@ import {
   exportStudentsToCSV,
   exportGradebookToExcel,
   exportClassPerformancePDF,
+  exportIndividualReportCardPDF,
   downloadSampleSpreadsheetTemplate
 } from '../../utils/exportUtils';
 import { Modal } from '../common/Modal';
@@ -44,6 +45,7 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
 
   const targetClass = classes.find(c => c.id === exportTargetClassId) || classes[0];
   const targetClassStudents = targetClass ? students.filter(s => s.classId === targetClass.id) : students;
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(targetClassStudents[0]?.id || '');
 
   const handleExportClassList = () => {
     if (format === 'xlsx') {
@@ -61,6 +63,13 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
     } else {
       exportGradebookToExcel(targetClass, targetClassStudents, assessments, grades, exportPeriod, settings);
     }
+    onClose();
+  };
+
+  const handleExportStudentPDF = () => {
+    const st = students.find(s => s.id === (selectedStudentId || targetClassStudents[0]?.id));
+    if (!st) return;
+    exportIndividualReportCardPDF(st, targetClass, assessments, grades, qualitative, attendance, settings);
     onClose();
   };
 
@@ -154,6 +163,36 @@ export const ExportCenterModal: React.FC<ExportCenterModalProps> = ({ isOpen, on
 
         {/* Document Action Cards */}
         <div className="space-y-3">
+          {/* Boletim Individual (PDF A4) */}
+          <div className="p-3.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <strong className="text-xs text-indigo-950 dark:text-indigo-200 block">
+                Boletim Individual do Estudante (PDF A4 Oficial)
+              </strong>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 block mb-2">
+                Documento A4 completo com notas dos bimestres, frequência detalhada, acompanhamento qualitativo e observações pedagógicas.
+              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Aluno:</span>
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-800 dark:text-slate-200 max-w-[240px]"
+                >
+                  {targetClassStudents.map(st => (
+                    <option key={st.id} value={st.id}>{st.name} ({st.registration})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button
+              onClick={handleExportStudentPDF}
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shrink-0 shadow-xs"
+            >
+              Emitir Boletim A4
+            </button>
+          </div>
+
           {/* Diário Completo de Notas */}
           <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition flex items-center justify-between">
             <div>

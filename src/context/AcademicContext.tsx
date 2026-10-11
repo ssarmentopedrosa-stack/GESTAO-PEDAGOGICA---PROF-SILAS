@@ -354,8 +354,21 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
     }
 
+    const batchToSave: Student[] = studentsToImport.map(incoming => {
+      if (incoming.registration && existingMap.has(incoming.registration)) {
+        const existing = existingMap.get(incoming.registration)!;
+        return {
+          ...existing,
+          ...incoming,
+          id: existing.id,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return incoming;
+    });
+
     try {
-      await saveStudentsBatch(studentsToImport);
+      await saveStudentsBatch(batchToSave);
       if (gradesToImport && gradesToImport.length > 0) {
         await saveGradesBatch(gradesToImport);
       }

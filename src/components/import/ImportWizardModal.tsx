@@ -22,6 +22,7 @@ import {
   extractSheetData,
   autoDetectColumnMappings,
   processImportRows,
+  downloadImportErrorReport,
   ColumnMapping,
   TargetField,
   ParsedSpreadsheet,
@@ -37,7 +38,7 @@ interface ImportWizardModalProps {
 }
 
 export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, onClose }) => {
-  const { students, classes, selectedPeriod, importStudentsBulk, showToast } = useAcademic();
+  const { students, classes, selectedPeriod, settings, importStudentsBulk, showToast } = useAcademic();
   const { effectiveUid } = useAuth();
 
   // Wizard Step: 1 to 8
@@ -115,6 +116,8 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
     setStep(4);
   };
 
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'errors' | 'warnings' | 'valid'>('all');
+
   // Step 4: Column Mapping confirmed -> Process and Validate to Step 5 (Preview) & 6/7
   const handleProcessValidation = () => {
     if (!sheetData) return;
@@ -126,13 +129,14 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
       students,
       chosenClass?.id || 'cls-default',
       chosenClass?.name || '1º Ano A',
-      effectiveUid
+      effectiveUid,
+      settings.gradeScale || 10
     );
     setProcessedRows(results);
     setStep(5);
   };
 
-  // Step 8: Execute Import
+  // Step 8: Execute Import with full deduplication and grade mapping
   const handleExecuteImport = async () => {
     setIsLoading(true);
     try {
@@ -144,26 +148,34 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
 
       const candidates: Student[] = [];
       const gradesToCreate: GradeRecord[] = [];
+      const existingMap = new Map(students.map(s => [s.registration, s]));
 
       validRows.forEach(r => {
-        if (importMode === 'add' && r.isExistingMatch) return; // Skip existing
-        if (importMode === 'update' && !r.isExistingMatch) return; // Skip new
+        const reg = r.mappedStudent.registration || '';
+        const existing = reg ? existingMap.get(reg) : undefined;
+
+        if (importMode === 'add' && existing) return; // Skip existing
+        if (importMode === 'update' && !existing) return; // Skip new
+
+        const studentId = existing ? existing.id : (r.matchedStudentId || r.mappedStudent.id || `st-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`);
 
         const st: Student = {
-          id: r.mappedStudent.id || `st-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          name: r.mappedStudent.name || 'Estudante',
-          registration: r.mappedStudent.registration || `TEMP-${Date.now()}`,
-          academicYear: 2026,
+          ...(existing || {}),
+          ...r.mappedStudent,
+          id: studentId,
+          name: r.mappedStudent.name || existing?.name || 'Estudante',
+          registration: reg || existing?.registration || `TEMP-${Date.now()}`,
+          academicYear: chosenClass?.academicYear || 2026,
           classId: chosenClass?.id || 'cls-default',
           className: chosenClass?.name || 'Turma',
           gradeYear: chosenClass?.gradeYear || '1º Ano',
           technicalCourse: chosenClass?.technicalCourse || 'Geral',
-          status: r.mappedStudent.status || 'active',
-          email: r.mappedStudent.email || '',
-          guardianContact: r.mappedStudent.guardianContact || '',
-          observations: r.mappedStudent.observations || '',
+          status: r.mappedStudent.status || existing?.status || 'active',
+          email: r.mappedStudent.email || existing?.email || '',
+          guardianContact: r.mappedStudent.guardianContact || existing?.guardianContact || '',
+          observations: r.mappedStudent.observations || existing?.observations || '',
           teacherUid: effectiveUid,
-          createdAt: new Date().toISOString(),
+          createdAt: existing?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
         candidates.push(st);
@@ -171,12 +183,36 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
         // Map grades if present
         if (r.gradesToImport?.p1 !== undefined) {
           gradesToCreate.push({
-            id: `ass-${chosenClass?.id}-b${selectedPeriod}-p1_${st.id}`,
+            id: `ass-${chosenClass?.id}-b${selectedPeriod}-p1_${studentId}`,
             assessmentId: `ass-${chosenClass?.id}-b${selectedPeriod}-p1`,
-            studentId: st.id,
+            studentId: studentId,
             classId: chosenClass?.id || '',
             period: selectedPeriod,
             value: r.gradesToImport.p1,
+            status: 'graded',
+            teacherUid: effectiveUid
+          });
+        }
+        if (r.gradesToImport?.t1 !== undefined) {
+          gradesToCreate.push({
+            id: `ass-${chosenClass?.id}-b${selectedPeriod}-t1_${studentId}`,
+            assessmentId: `ass-${chosenClass?.id}-b${selectedPeriod}-t1`,
+            studentId: studentId,
+            classId: chosenClass?.id || '',
+            period: selectedPeriod,
+            value: r.gradesToImport.t1,
+            status: 'graded',
+            teacherUid: effectiveUid
+          });
+        }
+        if (r.gradesToImport?.rec !== undefined) {
+          gradesToCreate.push({
+            id: `ass-${chosenClass?.id}-b${selectedPeriod}-rec_${studentId}`,
+            assessmentId: `ass-${chosenClass?.id}-b${selectedPeriod}-rec`,
+            studentId: studentId,
+            classId: chosenClass?.id || '',
+            period: selectedPeriod,
+            value: r.gradesToImport.rec,
             status: 'graded',
             teacherUid: effectiveUid
           });
@@ -497,20 +533,68 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
               </p>
             </div>
 
-            {/* Validation summary banner */}
-            <div className="flex flex-wrap gap-3 text-xs">
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                {processedRows.filter(r => r.errors.length === 0).length} Linhas Válidas
-              </span>
-              {errorRowsCount > 0 && (
-                <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold border border-rose-200">
-                  {errorRowsCount} Linhas com Erros Críticos
-                </span>
-              )}
-              {duplicateRegistrationsCount > 0 && (
-                <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold border border-amber-200">
-                  {duplicateRegistrationsCount} Matrículas Duplicadas
-                </span>
+            {/* Validation summary banner & filters */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-bold border transition ${
+                    previewFilter === 'all'
+                      ? 'bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  Todas ({processedRows.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('valid')}
+                  className={`px-2.5 py-1 rounded-lg font-bold border transition ${
+                    previewFilter === 'valid'
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}
+                >
+                  Válidas ({processedRows.filter(r => r.errors.length === 0).length})
+                </button>
+                {errorRowsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFilter('errors')}
+                    className={`px-2.5 py-1 rounded-lg font-bold border transition ${
+                      previewFilter === 'errors'
+                        ? 'bg-rose-600 text-white border-rose-600'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}
+                  >
+                    Erros Críticos ({errorRowsCount})
+                  </button>
+                )}
+                {duplicateRegistrationsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFilter('warnings')}
+                    className={`px-2.5 py-1 rounded-lg font-bold border transition ${
+                      previewFilter === 'warnings'
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}
+                  >
+                    Duplicadas / Avisos ({duplicateRegistrationsCount})
+                  </button>
+                )}
+              </div>
+
+              {(errorRowsCount > 0 || duplicateRegistrationsCount > 0) && (
+                <button
+                  type="button"
+                  onClick={() => downloadImportErrorReport(processedRows)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold text-xs"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Baixar Relatório de Erros (.csv)</span>
+                </button>
               )}
             </div>
 
@@ -572,7 +656,15 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {processedRows.slice(0, 50).map(r => (
+                  {processedRows
+                    .filter(r => {
+                      if (previewFilter === 'errors') return r.errors.length > 0;
+                      if (previewFilter === 'warnings') return r.warnings.length > 0 && r.errors.length === 0;
+                      if (previewFilter === 'valid') return r.errors.length === 0;
+                      return true;
+                    })
+                    .slice(0, 60)
+                    .map(r => (
                     <tr key={r.rowIndex} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                       <td className="px-3 py-1.5 font-mono text-[10px] text-slate-400">{r.rowIndex}</td>
                       <td className="px-3 py-1.5 font-mono text-slate-600">{r.mappedStudent.registration}</td>
@@ -652,6 +744,19 @@ export const ImportWizardModal: React.FC<ImportWizardModalProps> = ({ isOpen, on
                 <span className="block text-[11px] text-slate-500 mt-0.5">Rejeitados/Erros</span>
               </div>
             </div>
+
+            {finalReport.rejected > 0 && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => downloadImportErrorReport(processedRows)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold shadow-xs"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Baixar Relatório Detalhado de Linhas Rejeitadas (.csv)</span>
+                </button>
+              </div>
+            )}
 
             <div className="pt-4">
               <button

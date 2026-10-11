@@ -43,7 +43,7 @@ export const GradebookView: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [newType, setNewType] = useState<Assessment['type']>('prova');
   const [newWeight, setNewWeight] = useState<number>(5);
-  const [newMaxGrade, setNewMaxGrade] = useState<number>(10);
+  const [newMaxGrade, setNewMaxGrade] = useState<number>(settings.gradeScale || 10);
   const [newDate, setNewDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [newNotes, setNewNotes] = useState('');
 
@@ -77,10 +77,13 @@ export const GradebookView: React.FC = () => {
     setEditStatus(current?.status || 'graded');
   };
 
-  // Commit grade save
+  // Commit grade save respecting assessment maxGrade and gradeScale
   const handleSaveGrade = async () => {
     if (!editingCell) return;
     const { studentId, assessmentId } = editingCell;
+
+    const currentAss = assessments.find(a => a.id === assessmentId);
+    const maxAllowed = currentAss?.maxGrade ?? (settings.gradeScale || 10);
 
     let parsedVal: number | null = null;
     let finalStatus: GradeRecord['status'] = editStatus;
@@ -99,7 +102,8 @@ export const GradebookView: React.FC = () => {
       } else {
         const num = parseFloat(editValue.replace(',', '.'));
         if (!isNaN(num)) {
-          parsedVal = Math.max(0, Math.min(10, num));
+          // Strictly respect bounds between 0 and assessment maxGrade
+          parsedVal = Math.max(0, Math.min(maxAllowed, Number(num.toFixed(2))));
           finalStatus = 'graded';
         } else {
           parsedVal = null;
@@ -122,7 +126,7 @@ export const GradebookView: React.FC = () => {
       classId: activeClassId,
       period: selectedPeriod,
       type: newType,
-      maxGrade: newMaxGrade || 10,
+      maxGrade: newMaxGrade || settings.gradeScale || 10,
       weight: newWeight || 1,
       date: newDate,
       notes: newNotes,
@@ -368,6 +372,7 @@ export const GradebookView: React.FC = () => {
                         }
                       }
 
+                      const maxAllowed = ass.maxGrade || settings.gradeScale || 10;
                       return (
                         <td
                           key={ass.id}
@@ -379,12 +384,16 @@ export const GradebookView: React.FC = () => {
                           }`}
                         >
                           {isEditing ? (
-                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-indigo-400">
+                            <div className="flex flex-col space-y-1 p-1 bg-white dark:bg-slate-800 rounded-md shadow-md border border-indigo-400 min-w-[100px]">
+                              <div className="flex items-center justify-between text-[9px] text-slate-500 font-semibold px-0.5">
+                                <span>Máx: {maxAllowed}</span>
+                                <span>P: {ass.weight}</span>
+                              </div>
                               <input
                                 type="text"
                                 autoFocus
                                 value={editValue}
-                                placeholder="0 a 10"
+                                placeholder={`0 a ${maxAllowed}`}
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') handleSaveGrade();
@@ -406,7 +415,7 @@ export const GradebookView: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={handleSaveGrade}
-                                  className="bg-indigo-600 text-white px-2 py-0.5 rounded-sm hover:bg-indigo-700"
+                                  className="bg-indigo-600 text-white px-2 py-0.5 rounded-sm hover:bg-indigo-700 font-bold"
                                 >
                                   OK
                                 </button>

@@ -51,6 +51,7 @@ export interface ParsedRowResult {
   warnings: string[];
   isDuplicateRegistration: boolean;
   isExistingMatch: boolean;
+  matchedStudentId?: string;
 }
 
 export interface ImportSummary {
@@ -159,7 +160,8 @@ export function processImportRows(
   existingStudents: Student[],
   defaultClassId: string,
   defaultClassName: string,
-  teacherUid: string
+  teacherUid: string,
+  maxAllowedGrade: number = 10
 ): ParsedRowResult[] {
   const results: ParsedRowResult[] = [];
   const rows = rawData.slice(headerRowIndex + 1);
@@ -225,24 +227,33 @@ export function processImportRows(
         case 'gradeP1': {
           const parsed = parseBrazilianNumber(val);
           if (parsed !== null) {
-            if (parsed < 0 || parsed > 10) errors.push(`Nota P1 (${val}) fora dos limites (0 a 10)`);
-            else gradesToImport.p1 = parsed;
+            if (parsed < 0 || parsed > maxAllowedGrade) {
+              errors.push(`Nota P1 (${val}) fora dos limites permitidos (0 a ${maxAllowedGrade})`);
+            } else {
+              gradesToImport.p1 = parsed;
+            }
           }
           break;
         }
         case 'gradeT1': {
           const parsed = parseBrazilianNumber(val);
           if (parsed !== null) {
-            if (parsed < 0 || parsed > 10) errors.push(`Nota T1 (${val}) fora dos limites (0 a 10)`);
-            else gradesToImport.t1 = parsed;
+            if (parsed < 0 || parsed > maxAllowedGrade) {
+              errors.push(`Nota T1 (${val}) fora dos limites permitidos (0 a ${maxAllowedGrade})`);
+            } else {
+              gradesToImport.t1 = parsed;
+            }
           }
           break;
         }
         case 'gradeRec': {
           const parsed = parseBrazilianNumber(val);
           if (parsed !== null) {
-            if (parsed < 0 || parsed > 10) errors.push(`Nota REC (${val}) fora dos limites (0 a 10)`);
-            else gradesToImport.rec = parsed;
+            if (parsed < 0 || parsed > maxAllowedGrade) {
+              errors.push(`Nota REC (${val}) fora dos limites permitidos (0 a ${maxAllowedGrade})`);
+            } else {
+              gradesToImport.rec = parsed;
+            }
           }
           break;
         }
@@ -251,11 +262,12 @@ export function processImportRows(
 
     // Validation
     if (!mappedStudent.name || mappedStudent.name.length < 2) {
-      errors.push('Nome do estudante ausente ou inválido.');
+      errors.push('Nome do estudante ausente ou inválido (mínimo de 2 caracteres).');
     }
 
     let isDuplicateRegistration = false;
     let isExistingMatch = false;
+    let matchedStudentId: string | undefined = undefined;
 
     if (mappedStudent.registration) {
       if (seenRegistrations.has(mappedStudent.registration)) {
@@ -268,7 +280,9 @@ export function processImportRows(
       const existing = existingStudents.find(s => s.registration === mappedStudent.registration);
       if (existing) {
         isExistingMatch = true;
-        warnings.push(`Estudante já cadastrado no sistema (${existing.name}).`);
+        matchedStudentId = existing.id;
+        mappedStudent.id = existing.id; // PRESERVE EXISTING ID TO PREVENT DUPLICATES
+        warnings.push(`Estudante já cadastrado (${existing.name}). Será atualizado/mesclado sem duplicação.`);
       }
     } else {
       // Generate temporary registration if none provided
@@ -284,9 +298,40 @@ export function processImportRows(
       errors,
       warnings,
       isDuplicateRegistration,
-      isExistingMatch
+      isExistingMatch,
+      matchedStudentId
     });
   });
 
   return results;
+}
+
+/**
+ * Generates and downloads a detailed CSV/TXT error report of inconsistencies
+ */
+export function downloadImportErrorReport(processedRows: ParsedRowResult[]) {
+  const issueRows = processedRows.filter(r => r.errors.length > 0 || r.warnings.length > 0);
+  if (issueRows.length === 0) return;
+
+  const header = ['Linha', 'Matrícula', 'Nome', 'Tipo', 'Inconsistência/Validação'];
+  const data = issueRows.map(r => [
+    r.rowIndex,
+    r.mappedStudent.registration || '-',
+    r.mappedStudent.name || 'Não Identificado',
+    r.errors.length > 0 ? 'ERRO CRÍTICO' : 'AVISO/DUPLICIDADE',
+    [...r.errors, ...r.warnings].join(' | ')
+  ]);
+
+  const csvRows = [header, ...data].map(row => 
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')
+  ).join('\r\n');
+
+  const blob = new Blob(['\uFEFF' + csvRows], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `Relatorio_Inconsistencias_Importacao_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }

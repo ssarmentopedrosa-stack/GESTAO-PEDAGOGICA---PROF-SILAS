@@ -152,12 +152,21 @@ service cloud.firestore {
     // 1. Users Collection
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      // Prevent self-assigned privileges: default user registration is restricted to 'teacher' unless admin
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
+        && (incoming().role == 'teacher' || isAdmin());
+      // Prevent privilege escalation: users cannot change their own role unless admin
       allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
         && incoming().uid == existing().uid
         && incoming().email == existing().email
-        && (!('role' in incoming()) || incoming().role == existing().role || isAdmin());
+        && (incoming().role == existing().role || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // Admins Collection (Restricted)
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable through secure GCP server console
     }
 
     // 2. Classes (Turmas)

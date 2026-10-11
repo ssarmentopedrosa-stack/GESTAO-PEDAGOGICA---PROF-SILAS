@@ -307,6 +307,8 @@ export function exportIndividualReportCardPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('ACOMPANHAMENTO FORMATIVO E QUALITATIVO:', 14, qualStartY);
 
+  let afterQualY = qualStartY + 8;
+
   if (studentQual.length > 0) {
     const qualRows = studentQual.map(q => [
       `${q.period}º Bim. (${q.date || '-'})`,
@@ -329,18 +331,48 @@ export function exportIndividualReportCardPDF(
         3: { cellWidth: 76 }
       }
     });
+    afterQualY = (doc as any).lastAutoTable.finalY + 8;
   } else {
     doc.setFont('helvetica', 'italic');
     doc.text('Nenhum registro qualitativo extraordinário lançado no período.', 14, qualStartY + 6);
+    afterQualY = qualStartY + 14;
+  }
+
+  // General Pedagogical Observations of the Student
+  if (student.observations && student.observations.trim().length > 0) {
+    if (afterQualY > 235) {
+      doc.addPage();
+      afterQualY = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('OBSERVAÇÕES PEDAGÓGICAS GERAIS DO ESTUDANTE:', 14, afterQualY);
+
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.setDrawColor(226, 232, 240); // slate-200
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    const splitObs = doc.splitTextToSize(student.observations.trim(), 176);
+    const boxHeight = Math.max(12, splitObs.length * 4.5 + 4);
+    
+    doc.roundedRect(14, afterQualY + 3, 182, boxHeight, 2, 2, 'FD');
+    doc.text(splitObs, 17, afterQualY + 8);
+    afterQualY += boxHeight + 8;
   }
 
   // Footer & Signatures
   const pageHeight = doc.internal.pageSize.height;
+  if (afterQualY > pageHeight - 25) {
+    doc.addPage();
+  }
+  const footerY = doc.internal.pageSize.height;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text('Documento gerado pelo sistema Gestão Escolar PRO em conformidade com as diretrizes pedagógicas da instituição.', 105, pageHeight - 18, { align: 'center' });
-  doc.line(60, pageHeight - 10, 150, pageHeight - 10);
-  doc.text('Assinatura do Professor / Coordenação Pedagógica', 105, pageHeight - 6, { align: 'center' });
+  doc.text(`Documento emitido pelo Gestão Escolar PRO em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`, 105, footerY - 18, { align: 'center' });
+  doc.line(60, footerY - 10, 150, footerY - 10);
+  doc.text('Assinatura do Professor / Coordenação Pedagógica', 105, footerY - 6, { align: 'center' });
 
   doc.save(`Boletim_${student.name.replace(/[^a-zA-Z0-9]/g, '_')}_${student.registration}.pdf`);
 }

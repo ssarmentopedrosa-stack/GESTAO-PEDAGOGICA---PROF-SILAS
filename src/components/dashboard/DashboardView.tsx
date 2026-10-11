@@ -11,10 +11,13 @@ import {
   Calendar,
   ArrowRight,
   BookOpenCheck,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  Filter
 } from 'lucide-react';
 import { useAcademic } from '../../context/AcademicContext';
 import { calculatePeriodGrade, formatGrade, formatPercent } from '../../utils/calculations';
+import { exportIndividualReportCardPDF } from '../../utils/exportUtils';
 import { Badge } from '../common/Badge';
 
 interface DashboardViewProps {
@@ -28,10 +31,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
     classes,
     assessments,
     grades,
+    qualitative,
     attendance,
     settings,
     selectedClassId,
+    setSelectedClassId,
     selectedPeriod,
+    setSelectedPeriod
   } = useAcademic();
 
   // Filter students based on selectedClassId
@@ -109,10 +115,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
           belowAverageCount++;
         }
 
-        // Ranges
-        if (calc.finalAverage < 5.0) gradeRanges.danger++;
-        else if (calc.finalAverage < 6.0) gradeRanges.warning++;
-        else if (calc.finalAverage < 8.0) gradeRanges.good++;
+        // Ranges (proportional to school grade scale)
+        const scaleFactor = (settings.gradeScale || 10) / 10;
+        const dangerLimit = 5.0 * scaleFactor;
+        const warningLimit = 6.0 * scaleFactor;
+        const goodLimit = 8.0 * scaleFactor;
+
+        if (calc.finalAverage < dangerLimit) gradeRanges.danger++;
+        else if (calc.finalAverage < warningLimit) gradeRanges.warning++;
+        else if (calc.finalAverage < goodLimit) gradeRanges.good++;
         else gradeRanges.excellent++;
       }
 
@@ -233,11 +244,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
         </div>
         <div className="flex items-center space-x-2">
           <Badge variant="info">
-            {selectedClassId === 'all' ? 'Todas as 12 Turmas' : classes.find(c => c.id === selectedClassId)?.name}
+            {selectedClassId === 'all' ? 'Visão Consolidada (Todas as Turmas)' : classes.find(c => c.id === selectedClassId)?.name}
           </Badge>
           <Badge variant="neutral">
-            Modo: {settings.calculationMode === 'weighted' ? 'Média Ponderada' : 'Média Simples'}
+            Escala: 0 a {settings.gradeScale || 10} • Média: {formatGrade(settings.passingGrade)}
           </Badge>
+        </div>
+      </div>
+
+      {/* Interactive Quick Scope Filters */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Escopo do Painel:</span>
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden"
+          >
+            <option value="all">Todas as 12 Turmas (Visão Consolidada)</option>
+            {classes.map(c => (
+              <option key={c.id} value={c.id}>{c.name} ({c.technicalCourse})</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-1.5">
+          <span className="text-xs font-medium text-slate-500 mr-1">Bimestre:</span>
+          {[1, 2, 3, 4].map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setSelectedPeriod(p)}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                selectedPeriod === p
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              {p}º B
+            </button>
+          ))}
         </div>
       </div>
 
@@ -389,7 +436,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                       className={`h-full rounded-full ${
                         b.average === null ? 'bg-transparent' : b.average >= settings.passingGrade ? 'bg-emerald-500' : 'bg-rose-500'
                       }`}
-                      style={{ width: `${Math.min(100, ((b.average || 0) / 10) * 100)}%` }}
+                      style={{ width: `${Math.min(100, ((b.average || 0) / (settings.gradeScale || 10)) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -574,13 +621,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button
-                        onClick={() => onSelectStudentProfile(student.id)}
-                        className="inline-flex items-center space-x-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium"
-                      >
-                        <span>Perfil</span>
-                        <ChevronRight className="h-3 w-3" />
-                      </button>
+                      <div className="flex items-center justify-end space-x-1.5">
+                        <button
+                          onClick={() => exportIndividualReportCardPDF(
+                            student,
+                            classes.find(c => c.id === student.classId),
+                            assessments,
+                            grades,
+                            qualitative,
+                            attendance,
+                            settings
+                          )}
+                          className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
+                          title="Emitir Boletim PDF Individual (A4)"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onSelectStudentProfile(student.id)}
+                          className="inline-flex items-center space-x-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium px-2 py-1 rounded-md hover:bg-indigo-50 dark:hover:bg-slate-800 transition"
+                        >
+                          <span>Perfil</span>
+                          <ChevronRight className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
