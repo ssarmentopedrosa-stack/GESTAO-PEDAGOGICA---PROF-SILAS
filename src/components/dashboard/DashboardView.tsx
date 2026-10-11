@@ -275,14 +275,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
       />
 
       {/* Scope Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
         <div className="flex items-center space-x-2">
           <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Filtro do Painel:</span>
+          <span className="text-xs font-bold text-[#0F172A] dark:text-slate-200">Filtro do Painel:</span>
           <select
             value={selectedClassId}
             onChange={(e) => setSelectedClassId(e.target.value)}
-            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">Todas as {classes.length} Turmas (Visão Consolidada)</option>
             {classes.map(c => (
@@ -440,17 +440,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToTab, o
                     setSelectedClassId(cp.classEntity.id);
                     onNavigateToTab('gradebook');
                   }}
-                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-2.5 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 p-3 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-xs cursor-pointer transition-all"
                 >
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate" title={cp.classEntity.name}>
+                  <p className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate" title={cp.classEntity.name}>
                     {cp.classEntity.name}
                   </p>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[11px] font-medium text-[#475569] dark:text-slate-400">
                       {cp.studentCount} alunos
                     </span>
-                    <span className={`text-xs font-bold ${
-                      cp.average === null ? 'text-slate-400' : cp.average >= settings.passingGrade ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                    <span className={`text-xs font-extrabold ${
+                      cp.average === null ? 'text-slate-400' : cp.average >= settings.passingGrade ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
                     }`}>
                       {formatGrade(cp.average)}
                     </span>

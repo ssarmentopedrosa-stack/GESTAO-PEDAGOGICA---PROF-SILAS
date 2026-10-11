@@ -78,7 +78,21 @@ export async function testConnection(): Promise<boolean> {
 }
 
 export async function loginWithGoogle() {
-  return await signInWithPopup(auth, googleProvider);
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string };
+    // Gracefully handle harmless cancellations (user closed the Google sign-in window or another popup was open)
+    if (
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.code === 'auth/popup-blocked'
+    ) {
+      console.info('Autenticação com Google cancelada ou fechada pelo usuário:', error.code);
+      return null;
+    }
+    throw err;
+  }
 }
 
 export async function logoutUser() {

@@ -55,7 +55,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       await loginWithGoogle();
-    } catch (err) {
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (
+        error?.code === 'auth/cancelled-popup-request' ||
+        error?.code === 'auth/popup-closed-by-user' ||
+        error?.code === 'auth/popup-blocked'
+      ) {
+        // Not a fatal failure, user simply dismissed or cancelled the popup
+        return;
+      }
       console.error('Falha ao autenticar com Google:', err);
       throw err;
     } finally {

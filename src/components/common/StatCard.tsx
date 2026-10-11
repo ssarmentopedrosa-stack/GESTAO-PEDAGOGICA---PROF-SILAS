@@ -45,17 +45,17 @@ export const StatCard: React.FC<StatCardProps> = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+          <p className="text-xs font-semibold text-[#475569] dark:text-slate-400 truncate">
             {label}
           </p>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-white">
               {value}
             </span>
             {badge && <div>{badge}</div>}
           </div>
           {description && (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 truncate">
+            <p className="mt-1 text-xs text-[#475569] dark:text-slate-400 truncate">
               {description}
             </p>
           )}

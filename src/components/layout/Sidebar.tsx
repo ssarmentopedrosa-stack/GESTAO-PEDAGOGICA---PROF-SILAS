@@ -158,18 +158,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={item.id}
                     onClick={() => setActiveTab(item.id as ActiveTab)}
                     title={isCollapsed ? item.label : undefined}
-                    className={`w-full flex items-center transition-colors rounded-lg ${
+                    className={`w-full flex items-center transition-all rounded-lg font-medium ${
                       isCollapsed ? 'justify-center p-2.5' : 'space-x-3 px-3 py-2 text-xs'
                     } ${
                       isActive
-                        ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-semibold border-l-2 border-blue-600'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100 font-medium'
+                        ? 'bg-[#DBEAFE] text-[#1D4ED8] dark:bg-blue-950/60 dark:text-blue-300 font-semibold border-l-4 border-blue-600 shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100'
                     }`}
                   >
                     <Icon
-                      className={`h-4 w-4 shrink-0 ${
+                      className={`h-4 w-4 shrink-0 transition-colors ${
                         isActive
-                          ? 'text-blue-600 dark:text-blue-400'
+                          ? 'text-[#1D4ED8] dark:text-blue-400'
                           : 'text-slate-400 dark:text-slate-500'
                       }`}
                     />
