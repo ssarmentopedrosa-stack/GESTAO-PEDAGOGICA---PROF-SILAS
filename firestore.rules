@@ -2,17 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Global Safety Primitives
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isOwner(teacherUid) {
-      return isSignedIn() && request.auth.uid == teacherUid;
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
     }
 
     function incoming() {
@@ -23,137 +15,237 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Default deny all unknown collections
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function isOwner(teacherUid) {
+      return isSignedIn() && request.auth.uid == teacherUid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'ssarmentopedrosa@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // 1. Users
+    // Diagnostic Connection
+    match /test/{docId} {
+      allow read: if isSignedIn() && isValidId(docId);
+    }
+
+    // Standalone Validation Blueprints (Anti-Update-Gap & Zero-Trust ABAC)
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == request.auth.uid && data.uid.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && data.role in ['teacher', 'admin', 'coordinator']
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 256));
+    }
+
+    function isValidClass(data) {
+      return data.keys().hasAll(['id', 'name', 'gradeYear', 'technicalCourse', 'academicYear', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'name', 'gradeYear', 'technicalCourse', 'academicYear', 'shift', 'teacherUid', 'studentCount', 'subjectName', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.gradeYear in ['1º Ano', '2º Ano', '3º Ano']
+        && data.technicalCourse is string && data.technicalCourse.size() <= 120
+        && data.academicYear is number && data.academicYear >= 2000 && data.academicYear <= 2100
+        && (!('shift' in data) || data.shift in ['Matutino', 'Vespertino', 'Noturno', 'Integral'])
+        && (!('studentCount' in data) || data.studentCount is number)
+        && (!('subjectName' in data) || (data.subjectName is string && data.subjectName.size() <= 100));
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'name', 'academicYear', 'classId', 'status', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'name', 'registration', 'academicYear', 'classId', 'className', 'gradeYear', 'technicalCourse', 'status', 'observations', 'birthDate', 'email', 'guardianContact', 'teacherUid', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.academicYear is number
+        && data.classId is string && data.classId.size() <= 128
+        && data.status in ['active', 'transferred', 'graduated', 'inactive']
+        && (!('registration' in data) || (data.registration is string && data.registration.size() <= 64))
+        && (!('className' in data) || (data.className is string && data.className.size() <= 100))
+        && (!('technicalCourse' in data) || (data.technicalCourse is string && data.technicalCourse.size() <= 120))
+        && (!('observations' in data) || (data.observations is string && data.observations.size() <= 2000))
+        && (!('email' in data) || (data.email is string && data.email.size() <= 256))
+        && (!('guardianContact' in data) || (data.guardianContact is string && data.guardianContact.size() <= 100));
+    }
+
+    function isValidAssessment(data) {
+      return data.keys().hasAll(['id', 'title', 'classId', 'period', 'type', 'maxGrade', 'weight', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'title', 'classId', 'subjectId', 'period', 'type', 'maxGrade', 'weight', 'date', 'notes', 'academicYear', 'teacherUid', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.classId is string && data.classId.size() <= 128
+        && data.period is number && data.period >= 1 && data.period <= 6
+        && data.type in ['prova', 'trabalho', 'atividade', 'projeto', 'participacao', 'recuperacao']
+        && data.maxGrade is number && data.maxGrade > 0 && data.maxGrade <= 100
+        && data.weight is number && data.weight > 0 && data.weight <= 20
+        && (!('date' in data) || (data.date is string && data.date.size() <= 30))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    function isValidGrade(data) {
+      return data.keys().hasAll(['id', 'assessmentId', 'studentId', 'classId', 'period', 'status', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'assessmentId', 'studentId', 'classId', 'period', 'value', 'status', 'recoveryOriginalGrade', 'notes', 'teacherUid', 'updatedAt'])
+        && data.id is string && data.id.size() <= 256
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.assessmentId is string && data.assessmentId.size() <= 128
+        && data.studentId is string && data.studentId.size() <= 128
+        && data.classId is string && data.classId.size() <= 128
+        && data.period is number
+        && data.status in ['graded', 'pending', 'absent', 'excused', 'not_applicable']
+        && (!('value' in data) || data.value == null || (data.value is number && data.value >= 0 && data.value <= 100))
+        && (!('recoveryOriginalGrade' in data) || data.recoveryOriginalGrade == null || (data.recoveryOriginalGrade is number && data.recoveryOriginalGrade >= 0 && data.recoveryOriginalGrade <= 100))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidQualitative(data) {
+      return data.keys().hasAll(['id', 'studentId', 'classId', 'period', 'criterion', 'level', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'studentId', 'studentName', 'classId', 'period', 'date', 'criterion', 'criterionLabel', 'level', 'comment', 'teacherUid', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.studentId is string && data.studentId.size() <= 128
+        && data.classId is string && data.classId.size() <= 128
+        && data.period is number
+        && data.criterion is string && data.criterion.size() <= 100
+        && data.level in ['excelente', 'bom', 'em_desenvolvimento', 'necessita_acompanhamento']
+        && (!('comment' in data) || (data.comment is string && data.comment.size() <= 2000));
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['id', 'classId', 'date', 'teacherUid'])
+        && data.keys().hasOnly(['id', 'classId', 'subjectId', 'date', 'lessonTopic', 'records', 'teacherUid', 'createdAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.classId is string && data.classId.size() <= 128
+        && data.date is string && data.date.size() <= 30
+        && (!('lessonTopic' in data) || (data.lessonTopic is string && data.lessonTopic.size() <= 200))
+        && (!('records' in data) || data.records is map);
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['teacherUid', 'passingGrade', 'gradeScale', 'calculationMode'])
+        && data.keys().hasOnly(['teacherUid', 'passingGrade', 'gradeScale', 'calculationMode', 'recoveryPolicy', 'periodsCount', 'academicYear', 'schoolName', 'subjectName', 'teacherName', 'updatedAt'])
+        && data.teacherUid is string && data.teacherUid == request.auth.uid
+        && data.passingGrade is number && data.passingGrade >= 0 && data.passingGrade <= 100
+        && data.gradeScale is number && (data.gradeScale == 10 || data.gradeScale == 100)
+        && data.calculationMode in ['weighted', 'simple']
+        && (!('recoveryPolicy' in data) || data.recoveryPolicy in ['replaces_if_higher', 'weighted_average', 'simple_average'])
+        && (!('schoolName' in data) || (data.schoolName is string && data.schoolName.size() <= 200))
+        && (!('subjectName' in data) || (data.subjectName is string && data.subjectName.size() <= 100))
+        && (!('teacherName' in data) || (data.teacherName is string && data.teacherName.size() <= 150));
+    }
+
+    // 1. Users Collection
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId);
-      allow create: if isSignedIn() && request.auth.uid == userId
-        && incoming().uid == request.auth.uid
-        && incoming().email is string && incoming().email.size() <= 256
-        && incoming().role in ['teacher', 'admin', 'coordinator'];
-      allow update: if isSignedIn() && request.auth.uid == userId
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming())
         && incoming().uid == existing().uid
         && incoming().email == existing().email
-        && (!('role' in incoming()) || incoming().role == existing().role);
-      allow delete: if false;
+        && (!('role' in incoming()) || incoming().role == existing().role || isAdmin());
+      allow delete: if isAdmin();
     }
 
     // 2. Classes (Turmas)
     match /classes/{classId} {
-      allow get: if isSignedIn() && isValidId(classId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(classId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
-        && incoming().academicYear is number;
-      allow update: if isSignedIn() && isValidId(classId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(classId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(classId) && isValidClass(incoming());
+      allow update: if isSignedIn() && isValidId(classId) && isValidClass(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().id == existing().id;
       allow delete: if isSignedIn() && isValidId(classId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 3. Students (Estudantes)
     match /students/{studentId} {
-      allow get: if isSignedIn() && isValidId(studentId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(studentId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 200
-        && incoming().classId is string && incoming().classId.size() <= 128
-        && incoming().status in ['active', 'transferred', 'graduated', 'inactive'];
-      allow update: if isSignedIn() && isValidId(studentId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(studentId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(studentId) && isValidStudent(incoming());
+      allow update: if isSignedIn() && isValidId(studentId) && isValidStudent(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().id == existing().id;
       allow delete: if isSignedIn() && isValidId(studentId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 4. Assessments (Avaliações)
     match /assessments/{assessmentId} {
-      allow get: if isSignedIn() && isValidId(assessmentId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(assessmentId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().title is string && incoming().title.size() > 0 && incoming().title.size() <= 200
-        && incoming().period is number
-        && incoming().weight is number && incoming().weight > 0
-        && incoming().maxGrade is number && incoming().maxGrade > 0;
-      allow update: if isSignedIn() && isValidId(assessmentId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(assessmentId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(assessmentId) && isValidAssessment(incoming());
+      allow update: if isSignedIn() && isValidId(assessmentId) && isValidAssessment(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().id == existing().id;
       allow delete: if isSignedIn() && isValidId(assessmentId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 5. Grades (Notas pontuais)
     match /grades/{gradeId} {
-      allow get: if isSignedIn() && isValidId(gradeId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(gradeId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().studentId is string && incoming().studentId.size() <= 128
-        && incoming().assessmentId is string && incoming().assessmentId.size() <= 128
-        && incoming().status in ['graded', 'pending', 'absent', 'excused', 'not_applicable']
-        && (!('value' in incoming()) || incoming().value == null || (incoming().value is number && incoming().value >= 0 && incoming().value <= 100));
-      allow update: if isSignedIn() && isValidId(gradeId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(gradeId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(gradeId) && isValidGrade(incoming());
+      allow update: if isSignedIn() && isValidId(gradeId) && isValidGrade(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().studentId == existing().studentId
-        && incoming().assessmentId == existing().assessmentId
-        && incoming().status in ['graded', 'pending', 'absent', 'excused', 'not_applicable']
-        && (!('value' in incoming()) || incoming().value == null || (incoming().value is number && incoming().value >= 0 && incoming().value <= 100));
+        && incoming().assessmentId == existing().assessmentId;
       allow delete: if isSignedIn() && isValidId(gradeId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 6. Qualitative Records (Avaliação qualitativa)
     match /qualitative/{recordId} {
-      allow get: if isSignedIn() && isValidId(recordId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(recordId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().studentId is string && incoming().studentId.size() <= 128
-        && incoming().level in ['excelente', 'bom', 'em_desenvolvimento', 'necessita_acompanhamento'];
-      allow update: if isSignedIn() && isValidId(recordId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(recordId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(recordId) && isValidQualitative(incoming());
+      allow update: if isSignedIn() && isValidId(recordId) && isValidQualitative(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().studentId == existing().studentId;
       allow delete: if isSignedIn() && isValidId(recordId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 7. Attendance (Frequência diária)
     match /attendance/{attendanceId} {
-      allow get: if isSignedIn() && isValidId(attendanceId) && existing().teacherUid == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
-      allow create: if isSignedIn() && isValidId(attendanceId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().classId is string && incoming().classId.size() <= 128
-        && incoming().date is string;
-      allow update: if isSignedIn() && isValidId(attendanceId)
-        && existing().teacherUid == request.auth.uid
+      allow get: if isSignedIn() && isValidId(attendanceId) && (existing().teacherUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.teacherUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(attendanceId) && isValidAttendance(incoming());
+      allow update: if isSignedIn() && isValidId(attendanceId) && isValidAttendance(incoming())
+        && (existing().teacherUid == request.auth.uid || isAdmin())
         && incoming().teacherUid == existing().teacherUid
         && incoming().classId == existing().classId;
       allow delete: if isSignedIn() && isValidId(attendanceId)
-        && existing().teacherUid == request.auth.uid;
+        && (existing().teacherUid == request.auth.uid || isAdmin());
     }
 
     // 8. Settings
     match /settings/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId);
-      allow create, update: if isSignedIn() && (request.auth.uid == userId)
-        && incoming().teacherUid == request.auth.uid
-        && incoming().passingGrade is number
-        && incoming().gradeScale is number;
-      allow delete: if false;
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidSettings(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId && isValidSettings(incoming())
+        && incoming().teacherUid == existing().teacherUid;
+      allow delete: if isAdmin();
     }
   }
 }

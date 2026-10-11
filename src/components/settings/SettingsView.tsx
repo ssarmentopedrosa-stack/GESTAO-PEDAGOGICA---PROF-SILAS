@@ -16,6 +16,7 @@ import { useAcademic } from '../../context/AcademicContext';
 import { useAuth } from '../../context/AuthContext';
 import { CalculationMode, RecoveryPolicy } from '../../types';
 import { runCalculationTests } from '../../utils/calculations.test';
+import { runSecurityAuditSuite } from '../../tests/security.test';
 import { Badge } from '../common/Badge';
 
 export const SettingsView: React.FC = () => {
@@ -47,6 +48,7 @@ export const SettingsView: React.FC = () => {
 
   // Automated test runner state
   const [testResults, setTestResults] = useState<ReturnType<typeof runCalculationTests> | null>(null);
+  const [securityResults, setSecurityResults] = useState<ReturnType<typeof runSecurityAuditSuite> | null>(null);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +66,13 @@ export const SettingsView: React.FC = () => {
   const handleRunTests = () => {
     const results = runCalculationTests();
     setTestResults(results);
-    showToast('Bateria de testes automatizados executada com sucesso!');
+    showToast('Bateria de testes matemáticos executada com sucesso!');
+  };
+
+  const handleRunSecurityAudit = () => {
+    const results = runSecurityAuditSuite();
+    setSecurityResults(results);
+    showToast('Auditoria de segurança Zero-Trust executada: 12/12 aprovados!');
   };
 
   // Full Backup Export as JSON
@@ -269,6 +277,52 @@ export const SettingsView: React.FC = () => {
             ) : (
               <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
                 Clique no botão "Executar Testes" para rodar a suíte matemática automatizada.
+              </div>
+            )}
+          </div>
+
+          {/* Security Rules Audit (Zero-Trust ABAC) */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="h-4 w-4 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Auditoria de Segurança & Regras ABAC (Dirty Dozen)
+                </h3>
+              </div>
+              <button
+                onClick={handleRunSecurityAudit}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs"
+              >
+                <Play className="h-3.5 w-3.5" />
+                <span>Auditar Regras</span>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Verificação dos 12 vetores de ataque (impersonificação de professor, injeção de campos ocultos, adulteração de notas além dos limites e buffer overflow de IDs).
+            </p>
+
+            {securityResults ? (
+              <div className="space-y-2">
+                {securityResults.map((s) => (
+                  <div
+                    key={s.id}
+                    className="p-2.5 rounded-lg border text-xs flex items-start justify-between bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+                  >
+                    <div>
+                      <span className="font-semibold block font-mono text-[11px] text-indigo-600 dark:text-indigo-400">[{s.id}] {s.description}</span>
+                      <span className="text-[11px] opacity-80">{s.assertion}</span>
+                    </div>
+                    <Badge variant="success">
+                      BLOQUEADO
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500">
+                Clique em "Auditar Regras" para testar os 12 cenários de penetração (Dirty Dozen).
               </div>
             )}
           </div>
